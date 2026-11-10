@@ -159,7 +159,7 @@ right-click > Filters > + > **Chroma Key**. For Zoom/Meet/Discord, click **Start
 1. Send `ar\EchoBot.usdz` to your iPhone or iPad (AirDrop, iCloud or email).
 2. Tap it and choose **AR**.
 3. Point at a table or floor. Pinch to resize, drag to move.
-4. **Tap EchoBot** to change its mood, sound on: happy, talking, surprised, curious, sleepy, grumpy, crying, then round again.
+4. **Tap EchoBot** to change its mood (new face, a little motion and a sound): happy, talking, surprised, curious, sleepy, grumpy, crying, then round again.
 5. Drag to move it and twist with two fingers to turn it, as usual.
 
 If tapping does nothing on your device, use `ar\EchoBot_simple.usdz` instead (just the idle animation).
