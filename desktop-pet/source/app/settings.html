@@ -1,0 +1,362 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<title>EchoBot settings</title>
+<style>
+  :root { --bg: #f6f2ff; --paper: #fff; --ink: #20123f; --muted: #5d5280; --line: #e3d9ff; --violet: #6b1ff0; --soft: #ece3ff; --good: #12a37a; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f0a22; --paper: #1a1238; --ink: #f1ebff; --muted: #b0a3d8; --line: #2f2560; --violet: #a57bff; --soft: #2a1f55; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 "Segoe UI", system-ui, sans-serif; display: grid; grid-template-columns: 190px 1fr; height: 100vh; }
+  nav { background: var(--paper); border-right: 1px solid var(--line); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+  nav h1 { font: 700 20px "Segoe UI", sans-serif; margin: 0 8px 12px; }
+  nav button { text-align: left; font: 600 14px "Segoe UI", sans-serif; color: var(--ink); background: none; border: 0; border-radius: 10px; padding: 9px 12px; cursor: pointer; }
+  nav button:hover { background: var(--soft); }
+  nav button.on { background: var(--violet); color: #fff; }
+  nav .stats { margin-top: auto; font-size: 12.5px; color: var(--muted); padding: 8px 10px; }
+  main { overflow-y: auto; padding: 22px 26px 40px; }
+  section { display: none; max-width: 640px; }
+  section.on { display: block; }
+  h2 { font: 700 22px "Segoe UI", sans-serif; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 18px; }
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: 6px 16px; margin-bottom: 14px; }
+  .card h3 { font: 700 13px "Segoe UI", sans-serif; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 12px 0 4px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .card h3 + .row, .card > .row:first-child { border-top: 0; }
+  .row label, .row .what { flex: 1; }
+  .row small { display: block; color: var(--muted); font-size: 12.5px; }
+  input[type=text], input[type=password], input[type=number], input[type=time], select { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 6px 9px; }
+  input[type=number] { width: 70px; }
+  input[type=range] { accent-color: var(--violet); width: 160px; }
+  .switch, .row label.switch { position: relative; width: 42px; height: 24px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: #cfc6e6; border-radius: 999px; transition: .2s; cursor: pointer; }
+  .switch span::after { content: ""; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: .2s; }
+  .switch input:checked + span { background: var(--violet); }
+  .switch input:checked + span::after { transform: translateX(18px); }
+  button.btn { font: 600 13px "Segoe UI", sans-serif; border: 0; border-radius: 10px; padding: 8px 14px; background: var(--violet); color: #fff; cursor: pointer; }
+  button.btn.ghost { background: var(--soft); color: var(--ink); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px 0; }
+  .preset { border: 2px solid var(--line); border-radius: 14px; padding: 12px; cursor: pointer; background: var(--bg); text-align: left; color: var(--ink); font: inherit; }
+  .preset b { display: block; font-size: 15px; }
+  .preset small { color: var(--muted); }
+  .preset.on { border-color: var(--violet); background: var(--soft); }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { font: 600 13px "Segoe UI", sans-serif; border: 0; background: var(--bg); color: var(--ink); padding: 7px 12px; cursor: pointer; }
+  .seg button.on { background: var(--violet); color: #fff; }
+  .shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 10px 0 14px; }
+  .item { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--bg); display: flex; flex-direction: column; gap: 6px; }
+  .item b { font-size: 14px; }
+  .item small { color: var(--muted); }
+  .item.wearing { border-color: var(--violet); box-shadow: 0 0 0 2px var(--soft); }
+  .item .sw { width: 22px; height: 22px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 6px; border: 1px solid var(--line); }
+  .bars { display: grid; gap: 8px; padding: 12px 0; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 40px; align-items: center; gap: 10px; }
+  .bar i { height: 10px; border-radius: 6px; background: var(--soft); overflow: hidden; display: block; }
+  .bar i b { display: block; height: 100%; background: var(--violet); border-radius: 6px; }
+  .note { font-size: 12.5px; color: var(--muted); padding: 8px 0 12px; }
+  .ok { color: var(--good); font-weight: 600; }
+  .err { color: #d6336c; font-weight: 600; }
+  .list { display: grid; gap: 6px; padding: 8px 0; }
+  .list .r { display: flex; gap: 6px; align-items: center; }
+  .list .r input[type=text] { flex: 1; }
+  a { color: var(--violet); cursor: pointer; }
+</style>
+</head>
+<body>
+<nav>
+  <h1>💜 EchoBot</h1>
+  <button data-tab="general">EchoBot</button>
+  <button data-tab="reactions">Reactions</button>
+  <button data-tab="focus">Focus &amp; reminders</button>
+  <button data-tab="chat">Chat</button>
+  <button data-tab="shop">Care &amp; shop</button>
+  <button data-tab="fun">Fun &amp; games</button>
+  <button data-tab="calendar">Calendar</button>
+  <div class="stats" id="navStats"></div>
+</nav>
+<main>
+
+<section id="general">
+  <h2>EchoBot</h2>
+  <p class="lede">How EchoBot looks, moves and behaves. Changes apply right away.</p>
+  <div class="card">
+    <h3>Personality</h3>
+    <div class="presets" id="presets">
+      <button class="preset" data-p="Calm"><b>😌 Calm</b><small>Quiet, slow, rarely wanders. Great for focus.</small></button>
+      <button class="preset" data-p="Playful"><b>😄 Playful</b><small>The default: chatty and curious.</small></button>
+      <button class="preset" data-p="Chaotic"><b>🤪 Chaotic</b><small>Hops, zooms and talks a lot. Pairs well with mischief.</small></button>
+    </div>
+    <div class="row"><div class="what">How chatty<small>How often it says things on its own.</small></div><input type="range" min="0" max="2" step="0.1" data-key="chattiness"></div>
+  </div>
+  <div class="card">
+    <h3>Size and window</h3>
+    <div class="row"><div class="what">Size</div><select data-key="size"><option>Small</option><option>Medium</option><option>Large</option></select></div>
+    <div class="row"><div class="what">Always on top</div><label class="switch"><input type="checkbox" data-key="onTop"><span></span></label></div>
+    <div class="row"><div class="what">Start with Windows</div><label class="switch"><input type="checkbox" id="startWin"><span></span></label></div>
+  </div>
+  <div class="card">
+    <h3>Moving around</h3>
+    <div class="row"><div class="what">Gravity and throwing<small>Falls when you let go, bounces, can be thrown. Off = floats where you drop it.</small></div><label class="switch"><input type="checkbox" data-key="physics"><span></span></label></div>
+    <div class="row"><div class="what">Wander around</div><label class="switch"><input type="checkbox" data-key="wander"><span></span></label></div>
+    <div class="row"><div class="what">Wander speed</div><input type="range" min="0.4" max="2" step="0.1" data-key="wanderSpeed"></div>
+    <div class="row"><div class="what">Sit on windows<small>Hops onto window title bars and rides along when you move them.</small></div><label class="switch"><input type="checkbox" data-key="sitOnWindows"><span></span></label></div>
+    <div class="row"><div class="what">Peek from the screen edges</div><label class="switch"><input type="checkbox" data-key="edgePeek"><span></span></label></div>
+  </div>
+  <div class="card">
+    <h3>Staying out of the way</h3>
+    <div class="row"><div class="what">Hide during fullscreen apps<small>Games, videos and presentations.</small></div><label class="switch"><input type="checkbox" data-key="hideFullscreen"><span></span></label></div>
+    <div class="row"><div class="what">Do Not Disturb hotkey<small>Hides EchoBot and pauses reminders. Press again to bring it back.</small></div><input type="text" data-key="dndHotkey" style="width:130px"></div>
+    <div class="row"><div class="what">Windows notifications<small>Also show focus, reminder and calendar alerts as Windows notifications.</small></div><label class="switch"><input type="checkbox" data-key="windowsNotifications"><span></span></label></div>
+  </div>
+</section>
+
+<section id="reactions">
+  <h2>Reactions</h2>
+  <p class="lede">What EchoBot notices and reacts to.</p>
+  <div class="card">
+    <h3>Sound</h3>
+    <div class="row"><div class="what">React to sound<small id="soundNote">Off: EchoBot doesn't listen.</small></div>
+      <div class="seg" id="soundSeg"><button data-v="off">Off</button><button data-v="music">PC music</button><button data-v="mic">Microphone</button></div></div>
+    <p class="note">Sound is only measured live for loudness and beat. Nothing is recorded, saved or sent anywhere. "PC music" listens to what your computer plays (no microphone needed).</p>
+  </div>
+  <div class="card">
+    <h3>Around you</h3>
+    <div class="row"><div class="what">Typing<small>Watches your work while you type, suggests a stretch after a long stint. It never sees what you type.</small></div><label class="switch"><input type="checkbox" data-key="typing"><span></span></label></div>
+    <div class="row"><div class="what">Time of day<small>Morning greeting, lunch nudge, sleepy at night.</small></div><label class="switch"><input type="checkbox" data-key="timeOfDay"><span></span></label></div>
+    <div class="row"><div class="what">Battery<small>Gets sleepy when your laptop battery is low, happy when you plug in.</small></div><label class="switch"><input type="checkbox" data-key="battery"><span></span></label></div>
+    <div class="row"><div class="what">Busy computer<small>Sweats when the CPU is maxed out.</small></div><label class="switch"><input type="checkbox" data-key="cpu"><span></span></label></div>
+  </div>
+</section>
+
+<section id="focus">
+  <h2>Focus &amp; reminders</h2>
+  <p class="lede">EchoBot as a gentle productivity buddy.</p>
+  <div class="card">
+    <h3>Focus timer</h3>
+    <div class="row"><div class="what">Focus length (minutes)</div><input type="number" min="5" max="180" data-key="focusMinutes"></div>
+    <div class="row"><div class="what">Break length (minutes)</div><input type="number" min="1" max="60" data-key="breakMinutes"></div>
+    <div class="row"><div class="what" id="focusState">Start from here or right-click EchoBot › Focus timer.</div><button class="btn" id="focusBtn">Start focus</button></div>
+  </div>
+  <div class="card">
+    <h3>Reminders</h3>
+    <div class="row"><div class="what">💧 Drink water every <input type="number" min="10" max="240" data-key="water.every"> min</div><label class="switch"><input type="checkbox" data-key="water.on"><span></span></label></div>
+    <div class="row"><div class="what">🙆 Stand up and stretch every <input type="number" min="10" max="240" data-key="stand.every"> min</div><label class="switch"><input type="checkbox" data-key="stand.on"><span></span></label></div>
+    <h3>Your own reminders (every day)</h3>
+    <div class="list" id="customList"></div>
+    <div class="row"><div class="what"><small>Click EchoBot while it's reminding you to mark it done (+1 coin).</small></div><button class="btn ghost" id="addReminder">+ Add reminder</button></div>
+  </div>
+</section>
+
+<section id="chat">
+  <h2>Chat</h2>
+  <p class="lede">Talk to EchoBot from your desktop: double-click it, or right-click › Chat with EchoBot.</p>
+  <div class="card">
+    <div class="row"><div class="what">Chat with EchoBot<small>Off by default. This is the only feature that uses the internet, and only when you send a message. The first message after a while can take up to a minute while the free website wakes up.</small></div><label class="switch"><input type="checkbox" data-key="chat.on"><span></span></label></div>
+    <div class="row"><div class="what">Who answers<small>The free EchoBot website needs nothing. Claude needs your own API key (and bills that account).</small></div>
+      <select data-key="chat.provider"><option value="website">EchoBot website (free)</option><option value="claude">Claude (your API key)</option></select></div>
+    <div class="row"><div class="what">Your Claude API key<small id="keyState">Get one at <a id="consoleLink">console.anthropic.com</a> › API keys. It's stored encrypted on this PC.</small></div>
+      <div><input type="password" id="apiKey" placeholder="sk-ant-…" style="width:180px"> <button class="btn" id="saveKey">Save</button></div></div>
+    <div class="row"><div class="what">Claude model<small>Only used with your own API key.</small></div>
+      <select data-key="chat.model"><option value="claude-opus-5-5">Claude Opus 5.5 (smartest)</option><option value="claude-sonnet-5-5">Claude Sonnet 5.5 (faster)</option><option value="claude-haiku-5-5">Claude Haiku 5.5 (fastest, cheapest)</option></select></div>
+    <div class="row"><div class="what">Personality</div><select data-key="chat.personality"><option>Cheerful</option><option>Sassy</option><option>Sleepy</option><option>Pirate</option><option>Robot</option></select></div>
+    <div class="row"><div class="what">Voice</div><select id="voiceSel" data-key="chat.voice"><option value="">Default voice</option></select></div>
+    <div class="row"><div class="what">Talk out loud</div><label class="switch"><input type="checkbox" id="speakToggle"><span></span></label></div>
+    <div class="row"><div class="what">Remember me<small id="memState">Your name, a few facts and the last few messages, kept on this PC only.</small></div><label class="switch"><input type="checkbox" data-key="chat.remember"><span></span></label></div>
+    <div class="row"><div class="what"><span id="chatTest"></span></div><div><button class="btn ghost" id="forget">Forget me</button> <button class="btn ghost" id="testChat">Test</button> <button class="btn" id="openChat">Open chat</button></div></div>
+  </div>
+</section>
+
+<section id="shop">
+  <h2>Care &amp; shop</h2>
+  <p class="lede">Pet EchoBot (rub the mouse back and forth over it), feed it batteries and play to keep it happy. Coins come from petting, focus sessions, games, reminders and daily visits.</p>
+  <div class="card">
+    <div class="bars" id="bars"></div>
+    <div class="row"><div class="what">Needs and growth<small>Off = no stats, no coins, no asking. It never dies and never guilt-trips you either way.</small></div><label class="switch"><input type="checkbox" data-key="care.on"><span></span></label></div>
+  </div>
+  <div class="card"><h3>Hats</h3><div class="shop" id="shopHat"></div></div>
+  <div class="card"><h3>Outfits</h3><div class="shop" id="shopOutfit"></div></div>
+  <div class="card"><h3>Colours</h3><div class="shop" id="shopColour"></div></div>
+</section>
+
+<section id="fun">
+  <h2>Fun &amp; games</h2>
+  <p class="lede">Toys, games, a friend and a little mischief.</p>
+  <div class="card">
+    <h3>Play now</h3>
+    <div class="row"><div class="what">🎯 Catch the Echo<small>Pop the rings EchoBot sends across the screen. 30 seconds.</small></div><button class="btn" data-play="catch">Play</button></div>
+    <div class="row"><div class="what">🙈 Hide and seek<small>EchoBot hides at a screen edge. Find it and click it!</small></div><button class="btn" data-play="hop2">Play</button></div>
+    <div class="row"><div class="what">🦘 Echo Hop<small>The full game, in its own window.</small></div><button class="btn" data-play="hop">Play</button></div>
+    <div class="row"><div class="what">⚽ Throw a ball<small>EchoBot chases and kicks it. You can throw it too.</small></div><button class="btn ghost" data-toy="ball">Throw</button></div>
+    <div class="row"><div class="what">🔋 Feed a battery</div><button class="btn ghost" data-toy="battery">Feed</button></div>
+  </div>
+  <div class="card">
+    <h3>A friend</h3>
+    <div class="row"><div class="what">Second EchoBot<small>Wanders on its own and says hi when they meet.</small></div><label class="switch"><input type="checkbox" data-key="friend"><span></span></label></div>
+    <div class="row"><div class="what">Friend's colour</div><select data-key="friendColour" id="friendColour"></select></div>
+  </div>
+  <div class="card">
+    <h3>Mischief</h3>
+    <div class="row"><div class="what">Behave<small>Turn off to let EchoBot leave sticky notes, chase your cursor, do the zoomies and hide at the edges now and then. It never touches your files, windows or mouse.</small></div><label class="switch"><input type="checkbox" id="behave"><span></span></label></div>
+  </div>
+  <div class="card">
+    <h3>Special days</h3>
+    <div class="row"><div class="what">Seasonal surprises<small>Santa hat in December, witch hat at Halloween, party hat at New Year.</small></div><label class="switch"><input type="checkbox" data-key="seasonal"><span></span></label></div>
+    <div class="row"><div class="what">Your birthday<small>Party hat and confetti on the day.</small></div>
+      <div><select id="bdMonth"><option value="">Month</option></select> <select id="bdDay"><option value="">Day</option></select></div></div>
+  </div>
+</section>
+
+<section id="calendar">
+  <h2>Calendar</h2>
+  <p class="lede">EchoBot pops up a few minutes before your events start.</p>
+  <div class="card">
+    <div class="row"><div class="what">Calendar pop-ups</div><label class="switch"><input type="checkbox" data-key="calendar.on"><span></span></label></div>
+    <div class="row"><div class="what">Calendar feed<small>Paste your calendar's private iCal link (Google Calendar: Settings › your calendar › "Secret address in iCal format"; Outlook.com: Settings › Calendar › Shared calendars › Publish), or pick an .ics file.</small></div></div>
+    <div class="row" style="border-top:0;padding-top:0"><input type="text" data-key="calendar.source" placeholder="https://… or C:\…\calendar.ics" style="flex:1"> <button class="btn ghost" id="pickIcs">Browse…</button></div>
+    <div class="row"><div class="what">Minutes before</div><input type="number" min="1" max="60" data-key="calendar.minutesBefore"></div>
+    <div class="row"><div class="what" id="calStatus"></div><button class="btn ghost" id="calReload">Check now</button></div>
+  </div>
+</section>
+
+</main>
+<script>
+let S = {}, CAT = null, LEVEL = 1, FEAT = {};
+const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+const getPath = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
+const patchFor = (p, v) => p.split(".").reverse().reduce((acc, k) => ({ [k]: acc }), v);
+async function set(patch) { S = await echo.set(patch); render(); }
+
+function showTab(t) {
+  t = t || "general";
+  $$("nav button").forEach((b) => b.classList.toggle("on", b.dataset.tab === t));
+  $$("section").forEach((s) => s.classList.toggle("on", s.id === t));
+}
+$$("nav button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+echo.onTab(showTab);
+
+// generic bindings
+$$("[data-key]").forEach((el) => {
+  el.addEventListener("change", () => {
+    const k = el.dataset.key;
+    let v = el.type === "checkbox" ? el.checked : el.type === "number" || el.type === "range" ? Number(el.value) : el.value;
+    set(patchFor(k, v));
+  });
+});
+
+function render() {
+  $$("[data-key]").forEach((el) => {
+    if (document.activeElement === el && el.type !== "checkbox") return;
+    const v = getPath(S, el.dataset.key);
+    if (el.type === "checkbox") el.checked = !!v; else if (v !== undefined && v !== null) el.value = v;
+  });
+  $$(".preset").forEach((b) => b.classList.toggle("on", b.dataset.p === S.personality));
+  $$("#soundSeg button").forEach((b) => b.classList.toggle("on", b.dataset.v === S.sound));
+  $("#soundNote").textContent = { off: "Off: EchoBot doesn't listen.", music: "Bobs to whatever your PC is playing.", mic: "Listens through the microphone: tilts its head at voices, jumps at loud noises." }[S.sound];
+  $("#behave").checked = !S.mischief;
+  $("#speakToggle").checked = !S.chat.mute;
+  $("#keyState").innerHTML = S.hasApiKey ? '<span class="ok">✓ Key saved</span> (stored encrypted). Paste a new one to replace it.' : 'Get one at <a id="consoleLink">console.anthropic.com</a> › API keys. It\'s stored encrypted on this PC.';
+  const link = $("#consoleLink"); if (link) link.onclick = () => echo.action("openUrl", "https://console.anthropic.com/settings/keys");
+  const m = S.memory || {};
+  $("#memState").textContent = m.name || (m.facts || []).length ? `Remembers: ${m.name ? "your name (" + m.name + ")" : ""}${m.name && m.facts.length ? ", " : ""}${m.facts.length ? m.facts.length + " fact(s)" : ""}. Kept on this PC only.` : "Your name, a few facts and the last few messages, kept on this PC only.";
+  // custom reminders
+  const list = $("#customList");
+  if (!list.contains(document.activeElement)) { list.innerHTML = "";
+  (S.customReminders || []).forEach((r, i) => {
+    const row = document.createElement("div"); row.className = "r";
+    row.innerHTML = `<input type="time" value="${r.time || ""}"><input type="text" placeholder="What to remind you about" value=""><label class="switch"><input type="checkbox" ${r.on ? "checked" : ""}><span></span></label><button class="btn ghost">✕</button>`;
+    row.children[1].value = r.text || "";
+    const save = () => { const all = [...S.customReminders]; all[i] = { time: row.children[0].value, text: row.children[1].value, on: row.children[2].querySelector("input").checked }; set({ customReminders: all }); };
+    row.children[0].onchange = save; row.children[1].onchange = save; row.children[2].querySelector("input").onchange = save;
+    row.children[3].onclick = () => set({ customReminders: S.customReminders.filter((_, j) => j !== i) });
+    list.appendChild(row);
+  }); }
+  // birthday
+  const [bm, bd] = (S.birthday || "").split("-");
+  $("#bdMonth").value = bm || ""; $("#bdDay").value = bd || "";
+  renderShop();
+}
+
+function renderShop() {
+  if (!CAT) return;
+  const c = S.care;
+  const lvl = LEVEL, nextXp = (lvl) * (lvl) * 12;
+  $("#bars").innerHTML = [["⚡ Energy", c.energy, 100], ["💜 Happiness", c.happiness, 100], [`⭐ Level ${lvl}`, c.xp - (lvl - 1) * (lvl - 1) * 12, nextXp - (lvl - 1) * (lvl - 1) * 12]]
+    .map(([n, v, max]) => `<div class="bar"><span>${n}</span><i><b style="width:${Math.max(2, Math.min(100, (v / max) * 100))}%"></b></i><span>${Math.round(v)}</span></div>`).join("")
+    + `<div class="bar"><span>🪙 Coins</span><span style="font-weight:700">${c.coins}</span><span></span></div>`;
+  $("#navStats").textContent = `🪙 ${c.coins} · Level ${lvl}`;
+  for (const [kind, list, el] of [["hat", CAT.HATS, "#shopHat"], ["outfit", CAT.OUTFITS, "#shopOutfit"], ["colour", CAT.COLOURS, "#shopColour"]]) {
+    const box = $(el); box.innerHTML = "";
+    for (const it of list.filter((i) => !i.seasonal)) {
+      const owned = S.owned.includes(kind + ":" + it.id), wearing = S[kind] === it.id, locked = it.level && lvl < it.level;
+      const d = document.createElement("div"); d.className = "item" + (wearing ? " wearing" : "");
+      const sw = kind === "colour" ? `<span class="sw" style="background:hsl(${(263 + it.hue + 360) % 360} 70% 62%)"></span>` : "";
+      d.innerHTML = `<b>${sw}${it.name}</b><small>${wearing ? "Wearing" : owned ? "Owned" : locked ? "🔒 Level " + it.level : "🪙 " + it.price}</small>`;
+      const b = document.createElement("button"); b.className = "btn" + (owned ? " ghost" : "");
+      b.textContent = wearing ? "On" : owned ? "Wear" : "Buy";
+      b.disabled = wearing || (!owned && (locked || c.coins < it.price));
+      b.onclick = async () => { const r = await echo.action(owned ? "equip" : "buy", { kind, id: it.id }); if (!r.ok) alert(r.error); await refresh(); };
+      d.appendChild(b); box.appendChild(d);
+    }
+  }
+  const fc = $("#friendColour");
+  if (!fc.options.length) for (const col of CAT.COLOURS) { const o = document.createElement("option"); o.value = col.id; o.textContent = col.name; fc.appendChild(o); }
+  fc.value = S.friendColour;
+}
+
+async function refresh() {
+  const r = await echo.get();
+  S = r.settings; CAT = r.catalog; LEVEL = r.level; FEAT = r.features;
+  render();
+  const f = FEAT.focus || {};
+  $("#focusState").textContent = f.mode === "focus" ? `Focusing: ${f.minutesLeft} min left` : f.mode === "break" ? `On a break: ${f.minutesLeft} min left` : "Start from here or right-click EchoBot › Focus timer.";
+  $("#focusBtn").textContent = f.mode ? "Stop" : "Start focus";
+  const cal = FEAT.calendar || {};
+  $("#calStatus").innerHTML = cal.error ? `<span class="err">Couldn't read it: ${cal.error}</span>` : cal.events ? `<span class="ok">✓ ${cal.events} event(s) found.</span> ${cal.next.length ? "Next: " + cal.next.map((e) => `${e.title} at ${new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`).join(", ") : "Nothing in the next 24 hours."}` : S.calendar.source ? "Not checked yet." : "";
+  $("#startWin").checked = await echo.action("getStartWithWindows");
+}
+
+// specific controls
+$$(".preset").forEach((b) => b.addEventListener("click", () => {
+  const p = b.dataset.p;
+  const presets = { Calm: { chattiness: 0.5, wanderSpeed: 0.7 }, Playful: { chattiness: 1, wanderSpeed: 1 }, Chaotic: { chattiness: 1.6, wanderSpeed: 1.5 } };
+  set({ personality: p, ...presets[p] });
+}));
+$$("#soundSeg button").forEach((b) => b.addEventListener("click", () => set({ sound: b.dataset.v })));
+$("#behave").addEventListener("change", (e) => set({ mischief: !e.target.checked }));
+$("#speakToggle").addEventListener("change", (e) => set({ chat: { mute: !e.target.checked } }));
+$("#startWin").addEventListener("change", (e) => echo.action("startWithWindows", e.target.checked));
+$("#saveKey").addEventListener("click", async () => { const v = $("#apiKey").value.trim(); if (!v) return; await echo.action("setApiKey", v); $("#apiKey").value = ""; await refresh(); });
+$("#forget").addEventListener("click", async () => { if (confirm("Make EchoBot forget your name, facts and recent chats?")) { await echo.action("forgetMe"); await refresh(); } });
+$("#testChat").addEventListener("click", async () => { $("#chatTest").textContent = "Asking EchoBot…"; const r = await echo.action("testChat"); $("#chatTest").innerHTML = r.reply ? `<span class="ok">✓ “${r.reply}”</span>` : `<span class="err">${r.error}</span>`; });
+$("#openChat").addEventListener("click", () => echo.action("openChat"));
+$("#focusBtn").addEventListener("click", async () => { await echo.action((FEAT.focus || {}).mode ? "stopFocus" : "startFocus", S.focusMinutes); setTimeout(refresh, 300); });
+$("#addReminder").addEventListener("click", () => set({ customReminders: [...(S.customReminders || []), { time: "12:00", text: "", on: true }] }));
+$$("[data-play]").forEach((b) => b.addEventListener("click", () => echo.action("playGame", { catch: "catch", hop2: "hide", hop: "hop" }[b.dataset.play])));
+$$("[data-toy]").forEach((b) => b.addEventListener("click", () => echo.action("spawnToy", b.dataset.toy)));
+$("#pickIcs").addEventListener("click", async () => { const p = await echo.action("pickIcs"); if (p) { await set({ calendar: { source: p } }); await echo.action("reloadCalendar"); refresh(); } });
+$("#calReload").addEventListener("click", async () => { await echo.action("reloadCalendar"); refresh(); });
+// birthday pickers
+const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+months.forEach((m, i) => { const o = document.createElement("option"); o.value = String(i + 1).padStart(2, "0"); o.textContent = m; $("#bdMonth").appendChild(o); });
+for (let d = 1; d <= 31; d++) { const o = document.createElement("option"); o.value = String(d).padStart(2, "0"); o.textContent = d; $("#bdDay").appendChild(o); }
+const saveBd = () => { const m = $("#bdMonth").value, d = $("#bdDay").value; set({ birthday: m && d ? m + "-" + d : "" }); };
+$("#bdMonth").onchange = saveBd; $("#bdDay").onchange = saveBd;
+// voices
+function fillVoices() {
+  const sel = $("#voiceSel"), keep = S.chat ? S.chat.voice : "";
+  const vs = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+  sel.innerHTML = '<option value="">Default voice</option>' + vs.map((v) => `<option>${v.name}</option>`).join("");
+  sel.value = keep || "";
+}
+speechSynthesis.addEventListener("voiceschanged", fillVoices);
+
+echo.onSettings((s) => { S = s; render(); });
+showTab(new URLSearchParams(location.search).get("tab"));
+refresh().then(fillVoices);
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

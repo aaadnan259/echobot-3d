@@ -1,0 +1,516 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Echo Hop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+<style>
+/* Layout: one full-height night stage; the game canvas is a tall column centred in it, HUD on top, overlays inside. */
+:root {
+  --night: #0b0720;        /* the dark the bot climbs through */
+  --night-2: #170f38;
+  --ink: #efe9ff;          /* text on the night */
+  --muted: #a99ad6;
+  --violet: #7b3dff;       /* EchoBot's body colour */
+  --echo: #8ff3ff;         /* the sonar ring */
+  --spark: #ffd36e;        /* collectible notes */
+  --danger: #ff7aa8;
+  --display: "Fredoka", "Baloo 2", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+[hidden] { display: none !important; }
+body {
+  background: var(--night); color: var(--ink); font-family: var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.top { width: 100%; max-width: 460px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.35rem; letter-spacing: .01em; }
+.brand span { color: var(--echo); }
+.hud { display: flex; gap: 14px; align-items: center; font-family: var(--display); font-weight: 600; font-variant-numeric: tabular-nums; }
+.hud .lbl { font-family: var(--body); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: block; font-weight: 700; }
+.hud .val { font-size: 1.15rem; }
+.iconbtn { background: transparent; border: 1px solid #3a2d6e; color: var(--ink); border-radius: 10px; width: 38px; height: 38px; font-size: 1rem; cursor: pointer; }
+.iconbtn:focus-visible, button:focus-visible { outline: 2px solid var(--echo); outline-offset: 2px; }
+.stage { position: relative; flex: 1; min-height: 0; width: 100%; max-width: 460px; border-radius: 18px; overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 110%, var(--night-2), var(--night)); box-shadow: 0 0 0 1px #2a1f55 inset; }
+canvas { display: block; width: 100%; height: 100%; }
+.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; text-align: center; padding: 24px; background: rgba(11, 7, 32, .72); backdrop-filter: blur(2px); }
+.overlay h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2.2rem, 9vw, 3.2rem); margin: 0; line-height: 1; text-wrap: balance; }
+.overlay h1 span { color: var(--echo); }
+.overlay p { margin: 0; max-width: 32ch; line-height: 1.5; color: var(--ink); }
+.keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; text-align: left; font-size: .92rem; color: var(--muted); max-width: 300px; }
+.keys b { color: var(--ink); font-family: var(--display); font-weight: 600; }
+.play { font-family: var(--display); font-weight: 600; font-size: 1.2rem; background: var(--violet); color: #fff; border: 0; border-radius: 999px;
+  padding: 12px 34px; cursor: pointer; box-shadow: 0 6px 0 #4b1cb0, 0 0 30px rgba(123, 61, 255, .5); }
+.play:active { transform: translateY(3px); box-shadow: 0 3px 0 #4b1cb0; }
+.big { font-family: var(--display); font-size: 3rem; font-weight: 700; color: var(--spark); line-height: 1; font-variant-numeric: tabular-nums; }
+.note { font-size: .85rem; color: var(--muted); }
+.controls { width: 100%; max-width: 460px; display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 10px; }
+.controls button { font-family: var(--display); font-weight: 600; font-size: 1.05rem; height: 56px; border-radius: 14px; border: 1px solid #3a2d6e;
+  background: #150e33; color: var(--ink); touch-action: none; }
+.controls button.echo { background: #0f2f3a; border-color: #2c7d8c; color: var(--echo); }
+.controls button.on { background: #2a1d63; }
+@media (hover: hover) and (pointer: fine) { .controls { display: none; } }
+@media (prefers-reduced-motion: reduce) { .play { box-shadow: none; } }
+</style>
+
+<div class="top">
+  <div class="brand">Echo<span>Hop</span></div>
+  <div class="hud" aria-live="polite">
+    <div><span class="lbl">Height</span><span class="val" id="hScore">0 m</span></div>
+    <div><span class="lbl">Best</span><span class="val" id="hBest">0 m</span></div>
+    <div><span class="lbl">Echoes</span><span class="val" id="hEcho">●●●</span></div>
+    <button class="iconbtn" id="muteBtn" aria-label="Sound on">♪</button>
+  </div>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <div class="overlay" id="startOv">
+    <h1>Echo<span>Hop</span></h1>
+    <p>EchoBot is climbing out of a pitch-dark cave. The ledges are invisible until you send out an echo, and each echo only lights them up for a moment.</p>
+    <div class="keys">
+      <b>← →</b><span>steer (or A / D, or the buttons)</span>
+      <b>Space</b><span>send an echo to light up the ledges</span>
+      <b>✦</b><span>gold notes give you an extra echo</span>
+    </div>
+    <button class="play" id="playBtn">Play</button>
+    <span class="note">Cyan ledges are springy. Cracked ones break after one bounce.</span>
+  </div>
+  <div class="overlay" id="overOv" hidden>
+    <h1 id="overTitle">Lost in the dark</h1>
+    <div class="big" id="overScore">0 m</div>
+    <p id="overMsg"></p>
+    <button class="play" id="againBtn">Play again</button>
+    <span class="note">Press Space or Enter to restart</span>
+  </div>
+</div>
+
+<div class="controls" aria-label="Touch controls">
+  <button id="leftBtn" aria-label="Steer left">◀</button>
+  <button id="echoBtn" class="echo">Echo</button>
+  <button id="rightBtn" aria-label="Steer right">▶</button>
+</div>
+
+<script>
+(() => {
+"use strict";
+const W = 400;                          // logical width; height follows the canvas shape
+const GRAV = 1750, BOUNCE = 900, SPRING = 1420, MAXVX = 360, ACC = 2400, FRICTION = 7;
+const BOT_R = 22, ECHO_SPEED = 820, ECHO_MAX = 640, REVEAL_TIME = 2.6, RECHARGE = 4.2, MAX_ECHO = 3;
+
+const cv = document.getElementById("cv"), ctx = cv.getContext("2d");
+const stage = document.getElementById("stage");
+const $ = id => document.getElementById(id);
+let scale = 1, H = 700, dpr = 1;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  scale = cv.width / W; H = cv.height / scale;
+}
+window.addEventListener("resize", resize);
+
+// ---------- storage (best score is a per-browser convenience) ----------
+function loadBest() { try { return +localStorage.getItem("echohop-best") || 0; } catch { return 0; } }
+function saveBest(v) { try { localStorage.setItem("echohop-best", String(v)); } catch {} }
+
+// ---------- sound ----------
+let ac = null, muted = false;
+try { muted = localStorage.getItem("echohop-muted") === "1"; } catch {}
+function audio() {
+  if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch { ac = null; } }
+  if (ac && ac.state === "suspended") ac.resume();
+  return ac;
+}
+function blip(f0, f1, dur, vol = 0.15, type = "sine", echo = 0) {
+  if (muted) return;
+  const a = audio(); if (!a) return;
+  const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(a.destination);
+  if (echo) {                                  // a real echo: delayed, quieter copies
+    const d = a.createDelay(1), fb = a.createGain(), wet = a.createGain();
+    d.delayTime.value = 0.16; fb.gain.value = 0.45; wet.gain.value = 0.55;
+    g.connect(d); d.connect(fb); fb.connect(d); d.connect(wet); wet.connect(a.destination);
+    setTimeout(() => { try { d.disconnect(); fb.disconnect(); wet.disconnect(); } catch {} }, 2500);
+  }
+  o.start(t); o.stop(t + dur + 0.02);
+}
+const sfx = {
+  echo: () => blip(1400, 700, 0.22, 0.14, "sine", 1),
+  bounce: () => blip(240, 520, 0.12, 0.10, "triangle"),
+  spring: () => { blip(200, 1100, 0.3, 0.12, "triangle"); },
+  crack: () => blip(180, 60, 0.18, 0.12, "sawtooth"),
+  note: () => { blip(880, 880, 0.12, 0.10); setTimeout(() => blip(1320, 1320, 0.2, 0.1), 70); },
+  empty: () => blip(220, 160, 0.12, 0.08, "square"),
+  lose: () => { blip(520, 300, 0.35, 0.12, "triangle"); setTimeout(() => blip(390, 180, 0.6, 0.12, "triangle"), 260); },
+};
+function setMuted(m) {
+  muted = m; $("muteBtn").textContent = m ? "×" : "♪"; $("muteBtn").setAttribute("aria-label", m ? "Sound off" : "Sound on");
+  try { localStorage.setItem("echohop-muted", m ? "1" : "0"); } catch {}
+}
+$("muteBtn").onclick = () => setMuted(!muted);
+setMuted(muted);
+
+// ---------- world ----------
+let S;                                   // game state
+const rnd = (a, b) => a + Math.random() * (b - a);
+
+function newGame() {
+  S = {
+    run: false, over: false, t: 0,
+    bot: { x: W / 2, y: 0, vx: 0, vy: -BOUNCE, sq: 0, mood: "idle", moodT: 0, look: 0, blink: 0 },
+    cam: 0,                              // world y at the top of the screen (world y grows downward)
+    plats: [], notes: [], rings: [], parts: [],
+    echoes: MAX_ECHO, recharge: 0, height: 0, best: loadBest(), topY: 0, combo: 0,
+  };
+  // the floor ledge, then fill upward
+  S.plats.push(mkPlat(W / 2 - 60, 120, 120, "floor"));
+  S.bot.y = 120 - BOT_R;
+  S.topY = 120;
+  S.cam = 120 - H * 0.72;
+  fill();
+  updHud();
+}
+
+function mkPlat(x, y, w, kind) {
+  return { x, y, w, kind, reveal: kind === "floor" ? 9 : 0, broken: false, fall: 0,
+           vx: kind === "move" ? rnd(50, 90) * (Math.random() < .5 ? -1 : 1) : 0, seen: false };
+}
+
+function difficulty(y) { return Math.min(1, Math.max(0, -y / 9000)); }   // 0 at the start, 1 at 90 m
+
+function fill() {
+  while (S.topY > S.cam - 300) {
+    const d = difficulty(S.topY);
+    const gap = rnd(62, 95) + d * rnd(25, 75);
+    const y = S.topY - gap;
+    const w = Math.max(58, rnd(84, 112) - d * 34);
+    const x = rnd(8, W - w - 8);
+    const r = Math.random();
+    let kind = "solid";
+    if (y < -500) {
+      if (r < 0.07 + d * 0.06) kind = "spring";
+      else if (r < 0.16 + d * 0.16) kind = "crack";
+      else if (r < 0.22 + d * 0.2) kind = "move";
+    }
+    const p = mkPlat(x, y, w, kind);
+    S.plats.push(p);
+    // a crack ledge never stands alone: make sure there is a safe one nearby
+    if (kind === "crack" && Math.random() < 0.8) S.plats.push(mkPlat(rnd(8, W - w - 8), y - rnd(30, 50), w, "solid"));
+    if (Math.random() < 0.13 && kind !== "crack") S.notes.push({ x: x + w / 2, y: y - 34, got: false, reveal: 0, ph: Math.random() * 6 });
+    S.topY = Math.min(S.topY, ...S.plats.slice(-2).map(q => q.y));
+  }
+  // forget what scrolled far below
+  S.plats = S.plats.filter(p => p.y < S.cam + H + 400);
+  S.notes = S.notes.filter(n => n.y < S.cam + H + 400 && !n.got);
+}
+
+// ---------- input ----------
+const keys = { l: false, r: false };
+addEventListener("keydown", e => {
+  if (e.repeat && (e.code === "Space" || e.code === "Enter")) return;
+  if (["ArrowLeft", "KeyA"].includes(e.code)) keys.l = true;
+  if (["ArrowRight", "KeyD"].includes(e.code)) keys.r = true;
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW" || e.code === "Enter") {
+    e.preventDefault();
+    if (!S.run) start(); else echo();
+  }
+});
+addEventListener("keyup", e => {
+  if (["ArrowLeft", "KeyA"].includes(e.code)) keys.l = false;
+  if (["ArrowRight", "KeyD"].includes(e.code)) keys.r = false;
+});
+function hold(btn, k) {
+  const on = e => { e.preventDefault(); keys[k] = true; btn.classList.add("on"); audio(); };
+  const off = e => { e.preventDefault(); keys[k] = false; btn.classList.remove("on"); };
+  btn.addEventListener("pointerdown", on); btn.addEventListener("pointerup", off);
+  btn.addEventListener("pointerleave", off); btn.addEventListener("pointercancel", off);
+}
+hold($("leftBtn"), "l"); hold($("rightBtn"), "r");
+$("echoBtn").addEventListener("pointerdown", e => { e.preventDefault(); if (!S.run) start(); else echo(); });
+// tapping the stage: left/right third steers while held, the middle sends an echo
+cv.addEventListener("pointerdown", e => {
+  if (!S.run) return;
+  const r = cv.getBoundingClientRect(), u = (e.clientX - r.left) / r.width;
+  if (u < 0.33) keys.l = true; else if (u > 0.67) keys.r = true; else echo();
+  cv.setPointerCapture(e.pointerId);
+});
+cv.addEventListener("pointerup", () => { keys.l = keys.r = false; });
+cv.addEventListener("pointercancel", () => { keys.l = keys.r = false; });
+$("playBtn").onclick = start; $("againBtn").onclick = start;
+
+function start() {
+  audio();
+  if (S.over || !S.run) { if (S.over) newGame(); }
+  $("startOv").hidden = true; $("overOv").hidden = true;
+  S.run = true; S.over = false;
+}
+
+function echo() {
+  if (S.echoes <= 0) { sfx.empty(); mood("surprised", 0.4); return; }
+  S.echoes--; if (S.echoes < MAX_ECHO && S.recharge <= 0) S.recharge = RECHARGE;
+  S.rings.push({ x: S.bot.x, y: S.bot.y, r: BOT_R, hit: new Set() });
+  sfx.echo(); updHud();
+}
+
+function mood(m, secs) { S.bot.mood = m; S.bot.moodT = secs; }
+
+// ---------- update ----------
+function step(dt) {
+  const b = S.bot;
+  S.t += dt;
+  // steering
+  const dir = (keys.r ? 1 : 0) - (keys.l ? 1 : 0);
+  if (dir) b.vx += dir * ACC * dt; else b.vx -= b.vx * Math.min(1, FRICTION * dt);
+  b.vx = Math.max(-MAXVX, Math.min(MAXVX, b.vx));
+  b.x += b.vx * dt;
+  if (b.x < -BOT_R) b.x += W + 2 * BOT_R;            // wrap around the cave walls
+  if (b.x > W + BOT_R) b.x -= W + 2 * BOT_R;
+  b.look += ((b.vx / MAXVX) - b.look) * Math.min(1, 8 * dt);
+  // gravity and landing (only while falling, only from above)
+  const prevY = b.y;
+  b.vy += GRAV * dt; b.y += b.vy * dt;
+  if (b.vy > 0) {
+    for (const p of S.plats) {
+      if (p.broken) continue;
+      const top = p.y;
+      if (prevY + BOT_R <= top + 2 && b.y + BOT_R >= top && b.x > p.x - BOT_R * 0.6 && b.x < p.x + p.w + BOT_R * 0.6) {
+        b.y = top - BOT_R;
+        b.sq = -0.32;
+        if (p.kind === "spring") { b.vy = -SPRING; sfx.spring(); mood("happy", 1.0); burst(b.x, top, "#8ff3ff", 14); }
+        else { b.vy = -BOUNCE; sfx.bounce(); }
+        if (p.kind === "crack") { p.broken = true; sfx.crack(); burst(p.x + p.w / 2, top, "#b28cff", 12); }
+        p.reveal = Math.max(p.reveal, 0.9);      // you can feel the ledge you just touched
+        break;
+      }
+    }
+  }
+  b.sq += (0 - b.sq) * Math.min(1, 10 * dt);
+  if (b.vy < -200) b.sq = Math.max(b.sq, Math.min(0.12, -b.vy / 9000));
+  // moving ledges
+  for (const p of S.plats) {
+    if (p.kind === "move" && !p.broken) { p.x += p.vx * dt; if (p.x < 6 || p.x + p.w > W - 6) p.vx *= -1; }
+    if (p.broken) p.fall += dt;
+    p.reveal = Math.max(0, p.reveal - dt / REVEAL_TIME * (p.kind === "floor" ? 0 : 1));
+  }
+  // notes
+  for (const n of S.notes) {
+    n.reveal = Math.max(0, n.reveal - dt / REVEAL_TIME);
+    if (!n.got && Math.hypot(n.x - b.x, n.y - b.y) < BOT_R + 14) {
+      n.got = true; S.echoes = Math.min(MAX_ECHO + 1, S.echoes + 1); sfx.note(); mood("happy", 0.8);
+      burst(n.x, n.y, "#ffd36e", 16); updHud();
+    }
+  }
+  // echo rings: light up whatever they pass
+  for (const r of S.rings) {
+    r.r += ECHO_SPEED * dt;
+    for (const p of S.plats) {
+      const cx = Math.max(p.x, Math.min(r.x, p.x + p.w)), dd = Math.hypot(cx - r.x, p.y - r.y);
+      if (dd < r.r) { p.reveal = 1; p.seen = true; }
+    }
+    for (const n of S.notes) if (Math.hypot(n.x - r.x, n.y - r.y) < r.r) n.reveal = 1;
+  }
+  S.rings = S.rings.filter(r => r.r < ECHO_MAX);
+  // echo recharge
+  if (S.echoes < MAX_ECHO) {
+    S.recharge -= dt;
+    if (S.recharge <= 0) { S.echoes++; S.recharge = S.echoes < MAX_ECHO ? RECHARGE : 0; updHud(); }
+  }
+  // camera only moves up
+  const target = b.y - H * 0.45;
+  if (target < S.cam) S.cam += (target - S.cam) * Math.min(1, 6 * dt);
+  const h = Math.max(0, Math.round((120 - BOT_R - b.y) / 40));
+  if (h > S.height) { S.height = h; updHud(); }
+  fill();
+  // mood
+  b.moodT -= dt;
+  if (b.moodT <= 0) {
+    const below = S.plats.some(p => !p.broken && p.y > b.y && p.y < b.y + 260 && Math.abs(p.x + p.w / 2 - b.x) < 120);
+    b.mood = b.vy > 900 && !below ? "surprised" : "idle";
+  }
+  b.blink = (S.t % 3.7) < 0.12 ? 1 : 0;
+  // particles
+  for (const q of S.parts) { q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 600 * dt; q.life -= dt; }
+  S.parts = S.parts.filter(q => q.life > 0);
+  // fell out of the bottom
+  if (b.y - BOT_R > S.cam + H + 40) lose();
+}
+
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) S.parts.push({ x, y, vx: rnd(-160, 160), vy: rnd(-320, -60), life: rnd(0.4, 0.8), color });
+}
+
+function lose() {
+  S.run = false; S.over = true; sfx.lose();
+  S.bot.mood = "sad";
+  const best = Math.max(S.best, S.height);
+  const isBest = S.height > S.best && S.height > 0;
+  S.best = best; saveBest(best); updHud();
+  $("overTitle").textContent = isBest ? "New best!" : "Lost in the dark";
+  $("overScore").textContent = S.height + " m";
+  $("overMsg").textContent = isBest ? "EchoBot has never climbed this high. Can you beat it?"
+    : (best - S.height <= 5 ? `So close. Your best is ${best} m.` : `Your best is ${best} m. Echo early, echo often.`);
+  setTimeout(() => { if (S.over) $("overOv").hidden = false; }, 700);
+}
+
+function updHud() {
+  $("hScore").textContent = S.height + " m";
+  $("hBest").textContent = Math.max(S.best, S.height) + " m";
+  $("hEcho").textContent = "●".repeat(S.echoes) + "○".repeat(Math.max(0, MAX_ECHO - S.echoes));
+}
+
+// ---------- drawing ----------
+const stars = Array.from({ length: 70 }, () => ({ x: Math.random() * W, y: Math.random() * 2000, s: Math.random() * 1.4 + 0.3, p: Math.random() * 6 }));
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function drawPlat(p) {
+  const near = Math.max(0, 1 - Math.hypot(p.x + p.w / 2 - S.bot.x, p.y - S.bot.y) / 95) * 0.55;  // you can just make out ledges right next to you
+  const startHelp = Math.max(0, 1 - (-p.y) / 700) * 0.6;                                          // the first few are easy to see
+  let a = Math.min(1, Math.max(p.reveal, near, startHelp));
+  if (p.kind === "floor") a = 1;
+  if (a <= 0.01) return;
+  const y = p.y - S.cam + p.fall * p.fall * 400;
+  const col = p.kind === "spring" ? [143, 243, 255] : p.kind === "crack" ? [190, 150, 255] : p.kind === "move" ? [255, 160, 220] : [168, 128, 255];
+  ctx.save();
+  ctx.globalAlpha = a * (p.broken ? Math.max(0, 1 - p.fall * 2) : 1);
+  ctx.shadowColor = `rgb(${col})`; ctx.shadowBlur = 16 * a;
+  const g = ctx.createLinearGradient(0, y, 0, y + 12);
+  g.addColorStop(0, `rgb(${col.map(c => Math.min(255, c + 40))})`); g.addColorStop(1, `rgb(${col.map(c => c * 0.45)})`);
+  ctx.fillStyle = g; rr(p.x, y, p.w, 12, 6); ctx.fill();
+  ctx.shadowBlur = 0;
+  if (p.kind === "crack") {
+    ctx.strokeStyle = "rgba(20,10,50,.85)"; ctx.lineWidth = 1.6; ctx.beginPath();
+    const m = p.x + p.w / 2; ctx.moveTo(m - 10, y); ctx.lineTo(m - 2, y + 6); ctx.lineTo(m - 7, y + 12);
+    ctx.moveTo(m + 14, y); ctx.lineTo(m + 9, y + 7); ctx.stroke();
+  }
+  if (p.kind === "spring") {
+    ctx.strokeStyle = "rgba(10,40,60,.8)"; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i < 3; i++) { const cx = p.x + p.w / 2 - 14 + i * 14; ctx.moveTo(cx - 4, y + 4); ctx.lineTo(cx, y + 8); ctx.lineTo(cx + 4, y + 4); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawNote(n) {
+  if (n.got) return;
+  const near = Math.max(0, 1 - Math.hypot(n.x - S.bot.x, n.y - S.bot.y) / 110) * 0.7;
+  const a = Math.max(n.reveal, near, 0.12);
+  const y = n.y - S.cam + Math.sin(S.t * 3 + n.ph) * 4;
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(n.x, y); ctx.rotate(S.t * 1.5 + n.ph);
+  ctx.shadowColor = "#ffd36e"; ctx.shadowBlur = 14; ctx.fillStyle = "#ffd36e";
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) { const r = i % 2 ? 4 : 10, ang = i * Math.PI / 4; ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r); }
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function pill(x, y, w, h) { rr(x - w / 2, y - h / 2, w, h, w / 2); }
+
+function drawBot(b) {
+  const x = b.x, y = b.y - S.cam, r = BOT_R;
+  const sx = 1 + b.sq * -0.6, sy = 1 + b.sq;
+  ctx.save(); ctx.translate(x, y + r * (1 - sy)); ctx.scale(sx * 1.04, sy * 0.96); ctx.rotate(b.look * 0.12);
+  // halo rings (the logo's echo rings), pulsing
+  for (let i = 0; i < 2; i++) {
+    const ph = (S.t * 0.7 + i * 0.5) % 1;
+    ctx.strokeStyle = `rgba(200,170,255,${0.35 * (1 - ph)})`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, r * (1.15 + ph * 0.5), 0, Math.PI * 2); ctx.stroke();
+  }
+  // body
+  ctx.shadowColor = "rgba(123,61,255,.8)"; ctx.shadowBlur = 22;
+  const g = ctx.createRadialGradient(-r * 0.35, -r * 0.45, r * 0.1, 0, 0, r * 1.05);
+  g.addColorStop(0, "#c1a3ff"); g.addColorStop(0.35, "#8a45ff"); g.addColorStop(0.8, "#4d10d8"); g.addColorStop(1, "#22066f");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+  // gloss
+  ctx.fillStyle = "rgba(255,255,255,.55)"; ctx.beginPath(); ctx.ellipse(-r * 0.38, -r * 0.5, r * 0.28, r * 0.15, -0.5, 0, Math.PI * 2); ctx.fill();
+  // face
+  const ex = r * 0.32, ey = -r * 0.02, lx = b.look * r * 0.18;
+  ctx.fillStyle = "#06061a"; ctx.strokeStyle = "#06061a"; ctx.lineCap = "round"; ctx.lineWidth = 2.6;
+  const m = b.mood;
+  for (const s of [-1, 1]) {
+    const cx = s * ex + lx;
+    if (m === "happy") { ctx.beginPath(); ctx.arc(cx, ey + 3, 5, Math.PI * 1.1, Math.PI * 1.9); ctx.stroke(); }
+    else if (b.blink && m !== "surprised") { ctx.beginPath(); ctx.moveTo(cx - 4, ey); ctx.lineTo(cx + 4, ey); ctx.stroke(); }
+    else if (m === "sad") {
+      pill(cx, ey + 2, 6, 9); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(cx - 5 * s, ey - 8); ctx.lineTo(cx + 3 * s, ey - 5); ctx.stroke();
+      ctx.fillStyle = "#8ff3ff"; ctx.beginPath(); ctx.ellipse(cx + 1, ey + 11 + (S.t * 30 % 10), 2, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#06061a";
+    } else {
+      const big = m === "surprised" ? 1.25 : 1;
+      pill(cx, ey, 7 * big, 11 * big); ctx.fill();
+      ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(cx - 1.5, ey - 2.5 * big, 1.6, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = "#06061a";
+    }
+  }
+  if (m === "happy") {
+    ctx.fillStyle = "rgba(255,120,190,.55)";
+    for (const s of [-1, 1]) { ctx.beginPath(); ctx.ellipse(s * r * 0.55 + lx, r * 0.22, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = "#06061a";
+  }
+  if (m === "surprised") { ctx.beginPath(); ctx.ellipse(lx, r * 0.42, 2.6, 3.4, 0, 0, Math.PI * 2); ctx.fill(); }
+  if (m === "sad") { ctx.beginPath(); ctx.arc(lx, r * 0.5, 4, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); }
+  ctx.restore();
+}
+
+function draw() {
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  // drifting cave specks, slower than the camera for depth
+  for (const s of stars) {
+    const y = ((s.y - S.cam * 0.25) % 2000 + 2000) % 2000;
+    if (y > H) continue;
+    ctx.fillStyle = `rgba(200,190,255,${0.25 + 0.2 * Math.sin(S.t * 2 + s.p)})`;
+    ctx.fillRect(s.x, y, s.s, s.s);
+  }
+  // soft light around the bot
+  const by = S.bot.y - S.cam;
+  const lg = ctx.createRadialGradient(S.bot.x, by, 4, S.bot.x, by, 120);
+  lg.addColorStop(0, "rgba(123,61,255,.22)"); lg.addColorStop(1, "rgba(123,61,255,0)");
+  ctx.fillStyle = lg; ctx.fillRect(S.bot.x - 120, by - 120, 240, 240);
+  for (const p of S.plats) drawPlat(p);
+  for (const n of S.notes) drawNote(n);
+  // echo rings
+  for (const r of S.rings) {
+    const k = 1 - r.r / ECHO_MAX;
+    ctx.strokeStyle = `rgba(143,243,255,${0.75 * k})`; ctx.lineWidth = 3 * k + 0.5;
+    ctx.beginPath(); ctx.arc(r.x, r.y - S.cam, r.r, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = `rgba(143,243,255,${0.3 * k})`; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(r.x, r.y - S.cam, r.r * 0.82, 0, Math.PI * 2); ctx.stroke();
+  }
+  for (const q of S.parts) { ctx.globalAlpha = Math.min(1, q.life * 2); ctx.fillStyle = q.color; ctx.fillRect(q.x - 2, q.y - S.cam - 2, 4, 4); }
+  ctx.globalAlpha = 1;
+  drawBot(S.bot);
+  // recharge meter under the HUD dots
+  if (S.echoes < MAX_ECHO && S.run) {
+    const k = 1 - Math.max(0, S.recharge) / RECHARGE;
+    ctx.fillStyle = "rgba(143,243,255,.18)"; rr(W - 92, 10, 80, 5, 3); ctx.fill();
+    ctx.fillStyle = "rgba(143,243,255,.8)"; rr(W - 92, 10, 80 * k, 5, 3); ctx.fill();
+  }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, (now - last) / 1000); last = now;
+  if (S.run) step(dt);
+  else { S.t += dt; if (!S.over) { S.bot.y = 120 - BOT_R - Math.abs(Math.sin(S.t * 3)) * 60; } }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+resize();
+newGame();
+requestAnimationFrame(frame);
+window.__echohop = { state: () => S, step, start, echo, keys };
+})();
+</script>

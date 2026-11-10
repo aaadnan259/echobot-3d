@@ -1,0 +1,57 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+<title>Catch the Echo</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; font-family: "Segoe UI", system-ui, sans-serif; }
+  .ring { position: absolute; width: 74px; height: 74px; margin: -37px 0 0 -37px; border-radius: 50%; cursor: pointer;
+    border: 6px solid #b48cff; box-shadow: 0 0 18px #8f5bff, inset 0 0 14px #8f5bff; box-sizing: border-box;
+    animation: life var(--life) linear forwards; transition: left .9s cubic-bezier(.2,.8,.3,1), top .9s cubic-bezier(.2,.8,.3,1); }
+  .ring.gold { border-color: #ffd84d; box-shadow: 0 0 18px #ffb52e, inset 0 0 14px #ffb52e; }
+  .pop { position: absolute; font: 800 22px "Segoe UI", sans-serif; color: #fff; text-shadow: 0 2px 8px #6b2ef0; pointer-events: none; animation: up .8s ease-out forwards; }
+  @keyframes life { 0% { transform: scale(.2); opacity: 0; } 10% { transform: scale(1); opacity: 1; } 80% { opacity: 1; } 100% { transform: scale(.4); opacity: 0; } }
+  @keyframes up { to { transform: translateY(-50px); opacity: 0; } }
+  #hud { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(36, 20, 80, .85); color: #fff; padding: 8px 18px;
+    border-radius: 999px; font: 700 16px "Segoe UI", sans-serif; box-shadow: 0 6px 20px rgba(40, 10, 120, .4); pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="hud">Catch the Echo · 30s · 0</div>
+<script>
+const q = new URLSearchParams(location.search), px = +q.get("px") || innerWidth - 150, py = +q.get("py") || innerHeight - 100;
+const hud = document.getElementById("hud");
+let score = 0, end = Date.now() + 30000, overRing = false;
+function spawn() {
+  const el = document.createElement("div");
+  const gold = Math.random() < 0.15;
+  el.className = "ring" + (gold ? " gold" : "");
+  const life = Math.max(1.3, 2.6 - (30000 - (end - Date.now())) / 30000);   // rings get quicker
+  el.style.setProperty("--life", life + "s");
+  el.style.left = px + "px"; el.style.top = py + "px";
+  document.body.appendChild(el);
+  requestAnimationFrame(() => { el.style.left = 60 + Math.random() * (innerWidth - 120) + "px"; el.style.top = 70 + Math.random() * (innerHeight - 160) + "px"; });
+  el.addEventListener("mousedown", (e) => {
+    const pts = gold ? 3 : 1; score += pts;
+    const p = document.createElement("div"); p.className = "pop"; p.textContent = "+" + pts; p.style.left = e.clientX + "px"; p.style.top = e.clientY - 20 + "px";
+    document.body.appendChild(p); setTimeout(() => p.remove(), 800);
+    el.remove(); overlay.pop();
+  });
+  setTimeout(() => el.remove(), life * 1000 + 50);
+}
+addEventListener("mousemove", (e) => {
+  const over = !!(document.elementFromPoint(e.clientX, e.clientY) || {}).classList?.contains("ring");
+  if (over !== overRing) { overRing = over; overlay.clickThrough(!over); }
+});
+let next = Date.now() + 600;
+(function loop() {
+  const now = Date.now(), left = Math.max(0, Math.ceil((end - now) / 1000));
+  hud.textContent = `Catch the Echo · ${left}s · ${score}`;
+  if (now >= end) { overlay.done(score); return; }
+  if (now >= next) { spawn(); next = now + 450 + Math.random() * 500; }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

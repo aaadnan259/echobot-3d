@@ -1,0 +1,8 @@
+{
+  "name": "echobot-pet",
+  "productName": "EchoBot",
+  "version": "2.0.0",
+  "description": "EchoBot desktop pet",
+  "main": "main.js",
+  "author": "Adnan"
+}

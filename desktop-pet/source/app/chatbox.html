@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'">
+<title>Chat with EchoBot</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; color: #241b3a; }
+  .card { position: absolute; inset: 6px; background: #fff; border-radius: 16px; box-shadow: 0 8px 26px rgba(50, 20, 120, .35);
+    display: flex; flex-direction: column; padding: 10px; gap: 8px; box-sizing: border-box; }
+  .log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+  .log p { margin: 0; padding: 6px 10px; border-radius: 12px; max-width: 88%; overflow-wrap: anywhere; }
+  .me { align-self: flex-end; background: #6b2ef0; color: #fff; border-bottom-right-radius: 4px; }
+  .bot { align-self: flex-start; background: #ece4ff; border-bottom-left-radius: 4px; }
+  .hint { color: #6c6385; font-size: 12.5px; }
+  form { display: flex; gap: 6px; }
+  input { flex: 1; min-width: 0; font: inherit; border: 1px solid #e2dcf0; border-radius: 10px; padding: 8px 10px; outline: none; }
+  input:focus { border-color: #8a5cff; }
+  button { font: 600 13px "Segoe UI", sans-serif; border: 0; border-radius: 10px; padding: 0 12px; background: #6b2ef0; color: #fff; cursor: pointer; }
+  button.ghost { background: #ece4ff; color: #3b1a8f; }
+  .x { position: absolute; top: 8px; right: 10px; background: none; color: #6c6385; padding: 2px 6px; font-size: 16px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <button class="x" id="close" title="Close (Esc)">×</button>
+  <div class="log" id="log"><p class="hint" id="hint">Say something to EchoBot. Press Enter to send, Esc to close.</p></div>
+  <form id="f"><input id="t" maxlength="300" placeholder="Say hi to EchoBot…" autocomplete="off" autofocus><button id="send">Send</button></form>
+</div>
+<script>
+const log = document.getElementById("log"), t = document.getElementById("t"), hint = document.getElementById("hint"), sendBtn = document.getElementById("send");
+function line(cls, text) { const p = document.createElement("p"); p.className = cls; p.textContent = text; log.appendChild(p); log.scrollTop = log.scrollHeight; return p; }
+chat.info().then((i) => {
+  if (!i.on || !i.hasKey) {
+    hint.textContent = i.on ? "Add your Claude API key in Settings › Chat to talk to EchoBot." : "Chat is off. Turn it on in Settings › Chat.";
+    const b = document.createElement("button"); b.className = "ghost"; b.textContent = "Open settings"; b.onclick = () => chat.settings();
+    log.appendChild(b);
+  }
+  for (const r of i.recent) line(r.role === "user" ? "me" : "bot", r.text);
+});
+document.getElementById("f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = t.value.trim(); if (!text) return;
+  t.value = ""; line("me", text);
+  const wait = line("bot hint", "…"); sendBtn.disabled = true;
+  const r = await chat.send(text);
+  wait.remove(); sendBtn.disabled = false; t.focus();
+  line("bot", r.reply || r.error || "…");
+});
+document.getElementById("close").onclick = () => chat.close();
+addEventListener("keydown", (e) => { if (e.key === "Escape") chat.close(); });
+</script>
+</body>
+</html>

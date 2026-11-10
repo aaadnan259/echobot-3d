@@ -1,0 +1,538 @@
+<meta charset="utf-8">
+<title>EchoBot Face Cam</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Same studio look as the Playground: a big stage on the left, a control deck on the right; stacks on phones. */
+:root {
+  --bg: #f3f0fa; --surface: #ffffff; --ink: #241b3a; --muted: #6c6385; --line: #e2dcf0;
+  --violet: #6b2ef0; --violet-soft: #ece4ff; --stage-a: #faf7ff; --stage-b: #d9cdf6;
+  --focus: #8a5cff; --ok: #1f9d63; --warn: #b4521f;
+  --display: "Fredoka", "Nunito", system-ui, sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14101f; --surface: #1d1730; --ink: #efeaff; --muted: #a79dc4; --line: #2f2747;
+    --violet: #a582ff; --violet-soft: #2a2145; --stage-a: #2a2142; --stage-b: #120e1d;
+    --focus: #b89bff; --ok: #4fd39a; --warn: #f0a070; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14101f; --surface: #1d1730; --ink: #efeaff; --muted: #a79dc4; --line: #2f2747;
+  --violet: #a582ff; --violet-soft: #2a2145; --stage-a: #2a2142; --stage-b: #120e1d;
+  --focus: #b89bff; --ok: #4fd39a; --warn: #f0a070; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.wrap { max-width: 1160px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 4vw, 34px); margin: 0; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin: 0; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.stage {
+  position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 16 / 11; max-width: 100%;
+  border: 1px solid var(--line); touch-action: none;
+  background: radial-gradient(120% 90% at 50% 35%, var(--stage-a) 0%, var(--stage-b) 100%);
+}
+.stage[data-bg="green"] { background: #00b140; }
+.stage[data-bg="blue"] { background: #0047bb; }
+.stage[data-bg="night"] { background: radial-gradient(120% 90% at 50% 35%, #2a2142 0%, #0b0814 100%); }
+.stage canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
+.pip {
+  position: absolute; right: 12px; bottom: 12px; width: 22%; min-width: 110px; aspect-ratio: 4 / 3; object-fit: cover;
+  border-radius: 12px; border: 2px solid rgba(255,255,255,.75); transform: scaleX(-1); background: #000;
+  box-shadow: 0 8px 22px -10px rgba(0,0,0,.5);
+}
+.chip { position: absolute; left: 12px; bottom: 12px; font-family: var(--mono); font-size: 12px; color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 85%, transparent); padding: 4px 10px; border-radius: 999px;
+  display: flex; align-items: center; gap: 7px; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.chip[data-state="on"] i { background: var(--ok); }
+.chip[data-state="lost"] i { background: var(--warn); }
+.exit-focus { position: absolute; top: 12px; right: 12px; }
+
+/* focus mode: the stage fills the window, for screen sharing or OBS window capture */
+body.focus { padding: 0; overflow: hidden; }
+body.focus .wrap { max-width: none; }
+body.focus header, body.focus .deck { display: none; }
+body.focus .main { display: block; }
+body.focus .stage { position: fixed; inset: 0; aspect-ratio: auto; border-radius: 0; border: 0; }
+body.focus .chip { opacity: 0; transition: opacity .3s; }
+body.focus .stage:hover .chip { opacity: 1; }
+
+.deck { display: grid; gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.label { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.msg { font-size: 13px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--violet-soft); }
+button.btn {
+  font: 600 14px var(--display); color: #fff; background: var(--violet); border: 0; border-radius: 12px; padding: 10px 14px;
+  cursor: pointer; transition: transform .12s ease;
+}
+button.btn:active { transform: scale(.97); }
+button.soft {
+  font: 500 14px var(--body); color: var(--ink); background: var(--violet-soft); border: 1px solid transparent;
+  border-radius: 12px; padding: 8px 10px; cursor: pointer;
+}
+button.soft:hover { border-color: var(--violet); }
+button.soft[aria-pressed="true"] { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 16%, var(--violet-soft)); }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.toggle { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 14px; }
+.toggle input { accent-color: var(--violet); width: 18px; height: 18px; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--violet); }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.meters { display: grid; gap: 6px; font-family: var(--mono); font-size: 12px; }
+.meters div { display: grid; grid-template-columns: 84px minmax(0, 1fr) 36px; align-items: center; gap: 8px; }
+.meters .bar { height: 6px; border-radius: 3px; background: var(--violet-soft); overflow: hidden; }
+.meters .bar i { display: block; height: 100%; width: 0; background: var(--violet); border-radius: 3px; }
+.meters span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { button.btn { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>EchoBot Face Cam</h1>
+    <p class="sub">Turn on your camera and EchoBot copies your face: blinks, smiles, talking, head tilts.</p>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage" data-bg="studio" aria-label="EchoBot mirroring your face">
+      <video id="pip" class="pip" playsinline muted hidden></video>
+      <div class="chip" id="chip"><i></i><span id="chipText">Loading EchoBot…</span></div>
+      <button class="soft exit-focus" id="exitFocus" type="button" hidden>Exit full view</button>
+    </div>
+
+    <div class="deck">
+      <section class="panel" aria-labelledby="cam-h">
+        <p class="label" id="cam-h">Camera</p>
+        <button class="btn" id="camBtn" type="button">Start camera</button>
+        <p class="msg" id="camMsg" hidden></p>
+        <p class="hint">Everything runs on your computer. Your video is never uploaded or recorded.</p>
+        <div class="grid2">
+          <button class="soft" id="calib" type="button" disabled title="Look straight at the camera with a relaxed face, then press">Calibrate face</button>
+          <button class="soft" id="focusBtn" type="button">Full view</button>
+        </div>
+        <label class="toggle">Show my camera <input type="checkbox" id="showPip" checked></label>
+        <label class="toggle">Mirror movements <input type="checkbox" id="mirror" checked></label>
+      </section>
+
+      <section class="panel" aria-labelledby="bg-h">
+        <p class="label" id="bg-h">Background</p>
+        <div class="grid2" id="bgs">
+          <button class="soft" type="button" data-bg="studio" aria-pressed="true">Studio</button>
+          <button class="soft" type="button" data-bg="night" aria-pressed="false">Night</button>
+          <button class="soft" type="button" data-bg="green" aria-pressed="false">Green screen</button>
+          <button class="soft" type="button" data-bg="blue" aria-pressed="false">Blue screen</button>
+        </div>
+        <div class="row">
+          <span class="swatch" id="swatch"></span>
+          <input id="hue" type="range" min="-180" max="180" step="1" value="0" aria-label="Shift body colour">
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="m-h">
+        <p class="label" id="m-h">What it sees</p>
+        <div class="meters" id="meters"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="echobot-model.js"></script>
+<script src="face-model.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const MP_VERSION = "0.10.14";
+const MP_CDN = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`;
+const $ = (id) => document.getElementById(id);
+const stage = $("stage"), chip = $("chip"), chipText = $("chipText"), pip = $("pip");
+const camBtn = $("camBtn"), camMsg = $("camMsg"), calibBtn = $("calib");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- the face -> bot mapping, all values 0..1 ----------
+const F = { blinkL: 0, blinkR: 0, smile: 0, open: 0, surprise: 0, angry: 0, sad: 0, lookX: 0, lookY: 0, yaw: 0, pitch: 0, roll: 0, x: 0, y: 0 };
+const S = Object.fromEntries(Object.keys(F).map((k) => [k, 0]));       // smoothed
+const METERS = [["blinkL", "Blink left"], ["blinkR", "Blink right"], ["smile", "Smile"], ["open", "Mouth open"],
+  ["surprise", "Surprise"], ["angry", "Angry"], ["sad", "Sad"]];
+const meterEls = METERS.map(([k, label]) => {
+  const row = document.createElement("div");
+  row.innerHTML = `<span>${label}</span><span class="bar"><i></i></span><span>0.00</span>`;
+  $("meters").appendChild(row);
+  return { k, bar: row.querySelector("i"), num: row.lastElementChild };
+});
+let baseline = null;                // relaxed-face blendshape scores from "Calibrate"
+let lastScores = null;
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const ramp = (v, lo, hi) => clamp01((v - lo) / (hi - lo));
+
+function mapFace(scores, matrix) {
+  const raw = (n) => scores[n] ?? 0;
+  const b = (n) => Math.max(0, raw(n) - (baseline ? baseline[n] ?? 0 : 0));
+  const mirror = $("mirror").checked;
+  // MediaPipe names sides from the person's point of view; mirrored, your left eye drives the bot's eye on screen-left
+  let L = ramp(raw("eyeBlinkLeft") - (baseline ? Math.min(0.3, baseline.eyeBlinkLeft ?? 0) : 0), 0.22, 0.6);
+  let R = ramp(raw("eyeBlinkRight") - (baseline ? Math.min(0.3, baseline.eyeBlinkRight ?? 0) : 0), 0.22, 0.6);
+  if (Math.abs(L - R) < 0.35) { const m = (L + R) / 2; L = R = m; }       // treat near-equal as a normal blink
+  F.blinkL = mirror ? L : R; F.blinkR = mirror ? R : L;
+  const smile = (b("mouthSmileLeft") + b("mouthSmileRight")) / 2;
+  F.smile = ramp(smile, 0.18, 0.7);
+  F.open = ramp(b("jawOpen"), 0.04, 0.45);
+  const browUp = Math.max(b("browInnerUp"), (b("browOuterUpLeft") + b("browOuterUpRight")) / 2);
+  const wide = (b("eyeWideLeft") + b("eyeWideRight")) / 2;
+  F.surprise = ramp(browUp * 0.8 + wide * 0.6, 0.25, 0.65);
+  // a big smile also pulls the brows down, so a scowl only counts when you're not smiling
+  F.angry = ramp((b("browDownLeft") + b("browDownRight")) / 2, 0.28, 0.65) * (1 - F.smile);
+  F.sad = ramp((b("mouthFrownLeft") + b("mouthFrownRight")) / 2 + b("mouthPressLeft") * 0.2, 0.12, 0.45) * (1 - F.smile);
+  const gx = (raw("eyeLookOutLeft") + raw("eyeLookInRight") - raw("eyeLookInLeft") - raw("eyeLookOutRight")) / 2;
+  const gy = (raw("eyeLookUpLeft") + raw("eyeLookUpRight") - raw("eyeLookDownLeft") - raw("eyeLookDownRight")) / 2;
+  F.lookX = (mirror ? -1 : 1) * gx * 1.6; F.lookY = gy * 1.4;
+  if (matrix) {
+    const m = new THREE.Matrix4().fromArray(matrix);
+    const e = new THREE.Euler().setFromRotationMatrix(m, "YXZ");
+    const p = new THREE.Vector3().setFromMatrixPosition(m);
+    F.pitch = e.x; F.yaw = (mirror ? 1 : -1) * e.y; F.roll = (mirror ? 1 : -1) * e.z;
+    F.x = (mirror ? 1 : -1) * p.x / 20; F.y = p.y / 20;
+  }
+}
+
+// ---------- three.js scene ----------
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: false }); }
+catch (e) { chipText.textContent = "3D isn't available in this browser."; }
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(24, 1, 0.1, 100);
+camera.position.set(0, 1.95, 9.2);
+camera.lookAt(0, 1.7, 0);
+let floor, hover;
+if (renderer) {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  stage.prepend(renderer.domElement);
+  scene.environment = studioEnvironment(new THREE.PMREMGenerator(renderer));
+  scene.environmentIntensity = 0.7;
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(-3.5, 5.5, 4); key.castShadow = true; key.shadow.mapSize.set(1024, 1024); key.shadow.radius = 8;
+  Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 20 });
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xc9b4ff, 2.0); rim.position.set(3, 3.5, -3.5); scene.add(rim);
+  scene.add(new THREE.HemisphereLight(0xf2ecff, 0x9a86d8, 0.9));
+  hover = new THREE.PointLight(0x9a5cff, 2, 3.5, 1.6); hover.position.set(0, 0.15, 0); scene.add(hover);
+  floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.16, color: 0x3a1a8a }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  try {
+    const bin = Uint8Array.from(atob(window.ECHOBOT_GLB), (c) => c.charCodeAt(0));
+    new GLTFLoader().parse(bin.buffer, "", setup, () => { chipText.textContent = "Couldn't load the 3D model."; });
+  } catch (e) { chipText.textContent = "Couldn't load the 3D model."; }
+}
+
+function studioEnvironment(pmrem) {
+  const s = new THREE.Scene();
+  s.add(new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: { top: { value: new THREE.Color(0xffffff) }, bottom: { value: new THREE.Color(0x9c86e0) } },
+    vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ gl_FragColor = vec4(mix(bottom, top, smoothstep(-0.7, 0.9, vP.y)), 1.0); }",
+  })));
+  const panel = (w, h, pos, k) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) }));
+    m.position.set(...pos); m.lookAt(0, 0, 0); s.add(m);
+  };
+  panel(5, 3.5, [-5, 6, 5], 3.2); panel(3, 5, [6, 3, -4], 1.8);
+  return pmrem.fromScene(s, 0.03).texture;
+}
+
+let root, bot, squash, pivot, mouthRig, mouthMesh, eyeL, eyeR, bodyMat, baseColors, rings = [];
+const blush = [], catchlights = [], tears = [];
+const BLUSH_Q = { "Blush.L": new THREE.Quaternion(0.066, -0.236, 0.016, 0.969), "Blush.R": new THREE.Quaternion(0.066, 0.236, -0.016, 0.969) };
+const BLUSH_S = new THREE.Vector3(0.15, 0.09, 0.025);
+const MOUTH_S = new THREE.Vector3(0.1, 0.075, 0.05);
+const MOUTH_Q = new THREE.Quaternion(0.1046, 0, 0, 0.9945);
+const CATCH_S = new THREE.Vector3(0.24, 0.17, 0.3);
+const eyeBase = new Map();
+
+function setup(gltf) {
+  root = gltf.scene; scene.add(root);
+  root.traverse((o) => {
+    if (o.name === "LookTarget") o.visible = false;
+    if (!o.isMesh) return;
+    o.castShadow = !o.name.startsWith("EchoRing");
+    if (o.name === "Body") {
+      const old = o.material;
+      bodyMat = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.3, clearcoat: 0.55, clearcoatRoughness: 0.08,
+        sheen: 0.25, sheenColor: new THREE.Color(0xd8c4ff) });
+      bodyMat.onBeforeCompile = (sh) => {
+        sh.uniforms.rimColor = { value: new THREE.Color(0xb995ff) };
+        sh.uniforms.innerGlow = { value: 0.18 };
+        bodyMat.userData.shader = sh;
+        sh.fragmentShader = "uniform vec3 rimColor;\nuniform float innerGlow;\n" + sh.fragmentShader.replace("#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>
+           float facing = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+           totalEmissiveRadiance += rimColor * pow(1.0 - facing, 3.0) * 0.9;
+           totalEmissiveRadiance += rimColor * pow(facing, 3.0) * innerGlow;`);
+        applyHue();
+      };
+      o.material = bodyMat; old.dispose();
+      baseColors = o.geometry.getAttribute("color").array.slice();
+    }
+    if (o.name.startsWith("EchoRing")) {
+      o.material = o.material.clone(); o.material.transparent = true; o.material.depthWrite = false;
+      o.material.emissive = new THREE.Color(0x8f5bff); o.material.emissiveIntensity = 2.2; rings.push(o);
+    }
+    if (o.morphTargetDictionary && "Open" in o.morphTargetDictionary) mouthMesh = o;
+  });
+  bot = root.getObjectByName("EchoBot");
+  squash = root.getObjectByName("Squash");
+  pivot = root.getObjectByName("EyesPivot");
+  mouthRig = root.getObjectByName("MouthRig") || root.getObjectByName("Mouth");
+  eyeL = root.getObjectByName("EyeL") || root.getObjectByName("Eye.L");
+  eyeR = root.getObjectByName("EyeR") || root.getObjectByName("Eye.R");
+  for (const n of ["Blush.L", "Blush.R"]) { const o = root.getObjectByName(n) || root.getObjectByName(n.replace(".", "")); if (o) { o.quaternion.copy(BLUSH_Q[n]); blush.push(o); } }
+  for (const n of ["Catchlight.L", "Catchlight.R"]) { const o = root.getObjectByName(n) || root.getObjectByName(n.replace(".", "")); if (o) catchlights.push(o); }
+  root.traverse((o) => { if (o.name.startsWith("Tear")) { o.scale.setScalar(0); tears.push(o); } });
+  [eyeL, eyeR].forEach((e) => e && eyeBase.set(e, e.quaternion.clone()));
+  if (mouthRig) mouthRig.quaternion.copy(MOUTH_Q);
+  rings.sort((a, b) => a.name.localeCompare(b.name));
+  setChip("idle", "Ready. Press Start camera.");
+  const resize = () => {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h;
+    camera.fov = w / h < 1 ? 34 : 24;          // portrait / phone: pull back a little
+    camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage); resize();
+  renderer.setAnimationLoop(frame);
+}
+
+// pointer fallback before the camera is on
+const pointer = new THREE.Vector2();
+stage.addEventListener("pointermove", (e) => {
+  const r = stage.getBoundingClientRect();
+  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
+});
+stage.addEventListener("pointerleave", () => pointer.set(0, 0));
+
+const clock = new THREE.Clock();
+let nextAutoBlink = 2, faceSeenAt = -10;
+const morph = (mesh, name, v) => { if (mesh && mesh.morphTargetDictionary[name] !== undefined) mesh.morphTargetInfluences[mesh.morphTargetDictionary[name]] = v; };
+const tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler();
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  track(t);
+  const live = t - faceSeenAt < 0.6;
+  if (!live) {
+    // no face: drift back to neutral, follow the pointer, blink now and then
+    for (const k of Object.keys(F)) F[k] = 0;
+    F.lookX = pointer.x * 0.9; F.lookY = pointer.y * 0.9; F.yaw = pointer.x * 0.25; F.pitch = -pointer.y * 0.12;
+    if (t > nextAutoBlink) { F.blinkL = F.blinkR = 1; if (t > nextAutoBlink + 0.12) nextAutoBlink = t + 2.5 + Math.random() * 3; }
+  }
+  // smoothing: fast for eyelids and mouth, calmer for the head
+  for (const k of Object.keys(F)) {
+    const speed = k.startsWith("blink") || k === "open" ? 30 : ["yaw", "pitch", "roll", "x", "y"].includes(k) ? 10 : 14;
+    S[k] += (F[k] - S[k]) * (1 - Math.exp(-speed * dt));
+  }
+  if (!root) return;
+
+  // body: float, follow head turn/tilt and position
+  const bob = reduceMotion ? 0 : Math.sin(t * 2.2) * 0.05;
+  bot.position.set(S.x * 0.6, 1.7 + bob + S.y * 0.3 + S.surprise * 0.08, 0);
+  bot.rotation.set(-S.pitch * 0.9 + 0.02, S.yaw * 1.1, S.roll * 0.9);
+  const sq = 1 + S.surprise * 0.04 - S.angry * 0.03 + S.open * 0.025;
+  squash.scale.set(1 / Math.sqrt(sq), sq, 1 / Math.sqrt(sq));
+
+  // eyes: gaze on the pivot, moods on the shape keys (per eye, so winks work)
+  pivot.quaternion.setFromEuler(tmpE.set(-S.lookY * 0.25, S.lookX * 0.4, 0));
+  const happyEyes = ramp(S.smile, 0.55, 1) * (1 - S.surprise);
+  for (const [eye, blink] of [[eyeL, S.blinkL], [eyeR, S.blinkR]]) {
+    if (!eye) continue;
+    morph(eye, "Blink", clamp01(blink * (1 - happyEyes)));
+    morph(eye, "Happy", happyEyes);
+    morph(eye, "Surprised", S.surprise * (1 - blink));
+    morph(eye, "Angry", S.angry * (1 - happyEyes));
+    morph(eye, "Sad", S.sad * (1 - S.angry));
+    morph(eye, "Sleepy", 0);
+  }
+  catchlights.forEach((c) => c.scale.copy(CATCH_S).multiplyScalar(1 - happyEyes));
+
+  // mouth: shows when you talk, smile, frown or scowl
+  const frown = Math.max(S.angry, S.sad);
+  const vis = clamp01(S.open * 5 + S.smile * 1.4 + frown * 1.2 + S.surprise * 0.6);
+  if (mouthRig) mouthRig.scale.copy(MOUTH_S).multiplyScalar(Math.max(1e-4, vis * (1 + S.open * 0.25)));
+  morph(mouthMesh, "Open", clamp01(S.open * 1.1 + S.surprise * 0.5));
+  morph(mouthMesh, "Frown", frown);
+  const bl = clamp01(ramp(S.smile, 0.25, 0.9) * 0.9);
+  blush.forEach((o) => o.scale.copy(BLUSH_S).multiplyScalar(Math.max(1e-4, bl)));
+
+  // echo rings pulse; brighter while you talk
+  rings.forEach((ring, i) => {
+    const ph = reduceMotion ? i / 3 : (t / 2 + i / 3) % 1;
+    ring.scale.setScalar(0.78 + 0.36 * ph);
+    ring.material.opacity = Math.pow(Math.sin(Math.PI * ph), 1.5) * (0.45 + S.open * 0.55);
+    ring.material.emissiveIntensity = 2.2 + S.open * 4;
+  });
+  renderer.render(scene, camera);
+  updateMeters(t);
+}
+
+let meterT = 0;
+function updateMeters(t) {
+  if (t - meterT < 0.1) return; meterT = t;
+  for (const m of meterEls) {
+    const v = clamp01(S[m.k]);
+    m.bar.style.width = (v * 100).toFixed(1) + "%"; m.num.textContent = v.toFixed(2);
+  }
+}
+
+function setChip(state, text) { chip.dataset.state = state; chipText.textContent = text; }
+
+// ---------- camera + MediaPipe face tracking ----------
+let landmarker = null, stream = null, lastVideoTime = -1, starting = false;
+
+async function loadVision() {
+  // a copy shipped next to the page wins when served over http(s); opened as a file, browsers refuse
+  // local modules, so it loads from the CDN instead
+  if (location.protocol !== "file:") {
+    try {
+      const mod = await import(new URL("vision_bundle.mjs", document.baseURI).href);
+      return { mod, wasm: new URL("wasm/", document.baseURI).href };
+    } catch (e) { /* not shipped alongside: use the CDN */ }
+  }
+  const mod = await import(`${MP_CDN}/vision_bundle.mjs`);
+  return { mod, wasm: `${MP_CDN}/wasm/` };
+}
+
+async function makeLandmarker() {
+  const { mod, wasm } = await loadVision();
+  const fileset = { wasmLoaderPath: wasm + "vision_wasm_internal.js", wasmBinaryPath: wasm + "vision_wasm_internal.wasm" };
+  const modelAssetBuffer = Uint8Array.from(atob(window.FACE_MODEL_B64), (c) => c.charCodeAt(0));
+  const opts = (delegate) => ({
+    baseOptions: { modelAssetBuffer, delegate }, runningMode: "VIDEO", numFaces: 1,
+    outputFaceBlendshapes: true, outputFacialTransformationMatrixes: true,
+  });
+  try { return await mod.FaceLandmarker.createFromOptions(fileset, opts("GPU")); }
+  catch (e) { return await mod.FaceLandmarker.createFromOptions(fileset, opts("CPU")); }
+}
+
+async function startCamera() {
+  if (starting) return; starting = true;
+  camBtn.disabled = true; camMsg.hidden = true;
+  try {
+    if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error("no camera API"), { name: "NoApi" });
+    setChip("idle", "Asking for your camera…");
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: "user" }, audio: false });
+    pip.srcObject = stream; pip.hidden = !$("showPip").checked;
+    await pip.play();
+    if (!landmarker) { setChip("idle", "Loading face tracking…"); landmarker = await makeLandmarker(); }
+    setChip("lost", "Looking for your face…");
+    camBtn.textContent = "Stop camera"; camBtn.disabled = false; calibBtn.disabled = false;
+  } catch (e) {
+    stopCamera(false);
+    const blocked = e.name === "NotAllowedError" || e.name === "SecurityError" || e.name === "NoApi";
+    camMsg.textContent = blocked
+      ? "Camera access was blocked. Click the camera icon in the address bar, allow it, then press Start camera again."
+      : e.name === "NotFoundError" ? "No camera found. Plug one in and try again."
+      : e.name === "NotReadableError" ? "Your camera is busy in another app. Close that app and try again."
+      : "Face tracking couldn't start (" + (e.message || e.name) + "). Try reloading the page.";
+    camMsg.hidden = false;
+    setChip("idle", "Camera off");
+  }
+  starting = false;
+}
+
+function stopCamera(updateChip = true) {
+  stream?.getTracks().forEach((tr) => tr.stop()); stream = null;
+  pip.srcObject = null; pip.hidden = true;
+  camBtn.textContent = "Start camera"; camBtn.disabled = false; calibBtn.disabled = true;
+  if (updateChip) setChip("idle", "Camera off");
+}
+
+function track(t) {
+  if (!landmarker || !stream || pip.readyState < 2 || pip.currentTime === lastVideoTime) return;
+  lastVideoTime = pip.currentTime;
+  let res;
+  try { res = landmarker.detectForVideo(pip, performance.now()); } catch (e) { return; }
+  const shapes = res.faceBlendshapes?.[0]?.categories;
+  if (!shapes) { if (t - faceSeenAt > 0.6) setChip("lost", "Looking for your face…"); return; }
+  const scores = {};
+  for (const c of shapes) scores[c.categoryName] = c.score;
+  lastScores = scores;
+  mapFace(scores, res.facialTransformationMatrixes?.[0]?.data);
+  if (t - faceSeenAt > 0.6) setChip("on", "Tracking your face");
+  faceSeenAt = t;
+}
+
+camBtn.addEventListener("click", () => (stream ? stopCamera() : startCamera()));
+calibBtn.addEventListener("click", () => {
+  if (!lastScores) return;
+  baseline = { ...lastScores };
+  calibBtn.textContent = "Calibrated ✓";
+  setTimeout(() => { calibBtn.textContent = "Calibrate face"; }, 1600);
+});
+$("showPip").addEventListener("change", (e) => { pip.hidden = !e.target.checked || !stream; });
+
+// ---------- backgrounds, colour, full view ----------
+const bgButtons = [...document.querySelectorAll("#bgs button")];
+bgButtons.forEach((b) => b.addEventListener("click", () => {
+  stage.dataset.bg = b.dataset.bg;
+  bgButtons.forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  if (floor) floor.visible = !["green", "blue"].includes(b.dataset.bg);   // clean key colour, no shadow
+}));
+
+const hueInput = $("hue"), swatch = $("swatch");
+function applyHue() {
+  const deg = Number(hueInput.value);
+  const c = new THREE.Color(0x6b1ff0); c.offsetHSL(deg / 360, 0, 0);
+  swatch.style.background = "#" + c.getHexString();
+  if (!root || !baseColors) return;
+  const attr = root.getObjectByName("Body").geometry.getAttribute("color");
+  const tmp = new THREE.Color();
+  for (let i = 0; i < attr.count; i++) {
+    tmp.setRGB(baseColors[i * attr.itemSize], baseColors[i * attr.itemSize + 1], baseColors[i * attr.itemSize + 2]).offsetHSL(deg / 360, 0, 0);
+    attr.setXYZ(i, tmp.r, tmp.g, tmp.b);
+  }
+  attr.needsUpdate = true;
+  bodyMat?.userData.shader?.uniforms.rimColor.value.set(0xb995ff).offsetHSL(deg / 360, 0, 0);
+  rings.forEach((r) => r.material.emissive.set(0x8f5bff).offsetHSL(deg / 360, 0, 0));
+}
+hueInput.addEventListener("input", applyHue);
+applyHue();
+
+function setFocus(on) {
+  document.body.classList.toggle("focus", on);
+  $("exitFocus").hidden = !on;
+}
+$("focusBtn").addEventListener("click", () => setFocus(true));
+$("exitFocus").addEventListener("click", () => setFocus(false));
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setFocus(false);
+  if ((e.key === "f" || e.key === "F") && !e.target.closest?.("input")) setFocus(!document.body.classList.contains("focus"));
+});
+</script>

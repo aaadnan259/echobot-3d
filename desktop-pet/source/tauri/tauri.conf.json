@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "EchoBot",
+  "version": "2.0.0",
+  "identifier": "com.adnan.echobot",
+  "build": { "frontendDist": "../dist-tauri" },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      { "label": "brain", "url": "brain.html", "visible": false, "width": 200, "height": 200, "skipTaskbar": true, "decorations": false, "focus": false }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": false, "icon": ["icons/icon.ico", "icons/icon.png"] }
+}

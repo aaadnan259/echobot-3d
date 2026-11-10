@@ -1,0 +1,38 @@
+# EchoBot 3D backup: what's left out and why
+
+# Build caches and installed packages (rebuilt by `npm install` / the build scripts)
+node_modules/
+desktop-pet/source/tauri/target/
+desktop-pet/source/tauri/gen/
+desktop-pet/source/dist-tauri/
+desktop-pet/source/native/winwatch.exe
+__pycache__/
+*.pyc
+.cache/
+
+# The ~232 MB full-size pet (Electron runtime): rebuild with `node build.mjs` after unpacking Electron, or use the Lite exe
+desktop-pet/EchoBot Pet/
+
+# Old backup of the previous pet, and the review folder
+desktop-pet/EchoBot Pet (backup before upgrade).zip
+_review_then_delete/
+
+# Blender backups, temp files and render frames
+*.blend1
+*.blend2
+*.tmp
+temp/
+tmp/
+render_frames/
+intro_render/
+
+# Secrets: never commit these
+.env
+.env.*
+*.key
+*.pem
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,871 @@
+<meta charset="utf-8">
+<title>EchoBot Playground</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600&family=DM+Sans:opsz,wght@9..40,400;9..40,500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a soft lavender "studio" stage on the left, a compact control deck on the right; stacks on phones. */
+:root {
+  --bg: #f3f0fa;
+  --surface: #ffffff;
+  --ink: #241b3a;
+  --muted: #6c6385;
+  --line: #e2dcf0;
+  --violet: #6b2ef0;
+  --violet-soft: #ece4ff;
+  --stage-a: #faf7ff;
+  --stage-b: #d9cdf6;
+  --bubble: #ffffff;
+  --focus: #8a5cff;
+  --display: "Fredoka", "Nunito", system-ui, sans-serif;
+  --body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14101f; --surface: #1d1730; --ink: #efeaff; --muted: #a79dc4; --line: #2f2747;
+    --violet: #a582ff; --violet-soft: #2a2145; --stage-a: #2a2142; --stage-b: #120e1d;
+    --bubble: #2a2340; --focus: #b89bff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14101f; --surface: #1d1730; --ink: #efeaff; --muted: #a79dc4; --line: #2f2747;
+  --violet: #a582ff; --violet-soft: #2a2145; --stage-a: #2a2142; --stage-b: #120e1d;
+  --bubble: #2a2340; --focus: #b89bff; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 28px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; }
+h1 { font-family: var(--display); font-weight: 600; font-size: clamp(26px, 4vw, 34px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+.stage {
+  position: relative; border-radius: 22px; overflow: hidden; aspect-ratio: 4 / 3.4; max-width: 100%;
+  background: radial-gradient(120% 90% at 50% 35%, var(--stage-a) 0%, var(--stage-b) 100%);
+  border: 1px solid var(--line); touch-action: none; cursor: pointer;
+}
+.stage canvas { position: absolute; inset: 0; width: 100% !important; height: 100% !important; display: block; }
+.placeholder { position: absolute; inset: 0; display: grid; place-items: center; }
+.placeholder .ball {
+  width: 38%; aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #b58cff 0%, #6b1ff0 48%, #2c0a73 100%);
+  box-shadow: 0 30px 50px -20px rgba(70, 20, 160, .45); position: relative;
+}
+.placeholder .ball::before, .placeholder .ball::after {
+  content: ""; position: absolute; top: 40%; width: 9%; height: 17%; border-radius: 40%; background: #0b0d1a;
+}
+.placeholder .ball::before { left: 34%; } .placeholder .ball::after { right: 34%; }
+.status { position: absolute; left: 14px; bottom: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent); padding: 4px 9px; border-radius: 999px; }
+.bubble {
+  position: absolute; left: 50%; top: 7%; transform: translateX(-50%); max-width: min(78%, 420px);
+  background: var(--bubble); color: var(--ink); padding: 10px 16px; border-radius: 18px; font-family: var(--display);
+  font-size: 17px; font-weight: 500; box-shadow: 0 10px 30px -12px rgba(60, 20, 140, .35); text-align: center;
+  overflow-wrap: anywhere;
+}
+.bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; width: 16px; height: 16px; background: var(--bubble);
+  transform: translateX(-50%) rotate(45deg); border-radius: 3px; }
+
+.deck { display: grid; gap: 14px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; display: grid; gap: 12px; }
+.label { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+.moods { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+button.mood {
+  font: 500 14px var(--body); color: var(--ink); background: var(--violet-soft); border: 1px solid transparent;
+  border-radius: 12px; padding: 9px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 6px;
+  transition: transform .12s ease, border-color .12s ease;
+}
+button.mood small { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+button.mood:hover { border-color: var(--violet); }
+button.mood:active { transform: scale(.97); }
+button.mood[aria-pressed="true"] { border-color: var(--violet); background: color-mix(in srgb, var(--violet) 16%, var(--violet-soft)); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+form.say { display: flex; gap: 8px; }
+form.say input {
+  flex: 1; min-width: 0; font: 15px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px 12px;
+}
+form.say button { font: 600 14px var(--display); color: #fff; background: var(--violet); border: 0; border-radius: 12px; padding: 0 16px; cursor: pointer; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+.log { display: grid; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 2px; font-size: 14px; }
+.log:empty { display: none; }
+.log p { margin: 0; padding: 7px 11px; border-radius: 14px; max-width: 90%; overflow-wrap: anywhere; }
+.log .me { justify-self: end; background: var(--violet); color: #fff; border-bottom-right-radius: 5px; }
+.log .bot { justify-self: start; background: var(--violet-soft); color: var(--ink); border-bottom-left-radius: 5px; }
+.log .bot.thinking { color: var(--muted); font-style: italic; }
+.voice-row { display: flex; gap: 8px; align-items: center; }
+.voice-row select { flex: 1; min-width: 0; font: 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 7px 8px; }
+button.small { font: 500 13px var(--body); color: var(--ink); background: var(--violet-soft); border: 1px solid transparent; border-radius: 10px; padding: 7px 10px; cursor: pointer; white-space: nowrap; }
+button.small:hover { border-color: var(--violet); }
+form.say button:disabled { opacity: .55; cursor: default; }
+select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { font: 500 12.5px var(--body); color: var(--violet); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.chips button:hover { border-color: var(--violet); background: var(--violet-soft); }
+.log .sep { justify-self: center; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0; }
+.memory-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.memory-row .hint { min-width: 0; }
+#personaSel { flex: 0 0 auto; max-width: 42%; }
+.row { display: flex; align-items: center; gap: 10px; }
+.row input[type="range"] { flex: 1; min-width: 0; accent-color: var(--violet); }
+.swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); flex: none; }
+.rig { display: grid; gap: 6px; font-family: var(--mono); font-size: 12px; }
+.rig div { display: grid; grid-template-columns: 76px minmax(0, 1fr) 36px; align-items: center; gap: 8px; }
+.rig .bar { height: 6px; border-radius: 3px; background: var(--violet-soft); overflow: hidden; }
+.rig .bar i { display: block; height: 100%; width: 0; background: var(--violet); border-radius: 3px; }
+.rig span:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { button.mood { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>EchoBot Playground</h1>
+    <p class="sub">Chat with it and it talks back. Move your pointer and it watches; click it or pick a mood.</p>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage" aria-label="EchoBot 3D view. Click the bot to make it happy.">
+      <div class="placeholder" id="placeholder"><div class="ball"></div></div>
+      <div class="bubble" id="bubble" hidden></div>
+      <div class="status" id="status">Loading EchoBot…</div>
+    </div>
+
+    <div class="deck">
+      <section class="panel" aria-labelledby="moods-h">
+        <p class="label" id="moods-h">Animation clips</p>
+        <div class="moods" id="moods"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="say-h">
+        <p class="label" id="say-h">Chat with EchoBot</p>
+        <div class="log" id="log" aria-live="polite"></div>
+        <form class="say" id="sayForm">
+          <input id="sayInput" type="text" maxlength="300" placeholder="Say hi to EchoBot…" autocomplete="off" value="Hi EchoBot! What can you do?">
+          <button type="submit" id="sendBtn">Send</button>
+        </form>
+        <div class="chips" id="chips" aria-label="Try saying">
+          <button type="button" data-say="Let's play guess the mood!">Guess the mood</button>
+          <button type="button" data-say="Let's play 20 questions. You think of something.">20 questions</button>
+          <button type="button" data-say="Quiz me with a fun question!">Quiz me</button>
+          <button type="button" data-say="Do a happy dance!">Dance</button>
+          <button type="button" data-say="Turn green, please!">Turn green</button>
+          <button type="button" data-say="Do you remember my name?">My name?</button>
+        </div>
+        <div class="voice-row">
+          <select id="personaSel" aria-label="EchoBot's personality">
+            <option value="cheerful">Cheerful</option><option value="sassy">Sassy</option><option value="sleepy">Sleepy</option>
+            <option value="pirate">Pirate</option><option value="robot">Robot</option>
+          </select>
+          <select id="voiceSel" aria-label="EchoBot's voice"><option value="">Default voice</option></select>
+          <button class="small" type="button" id="muteBtn" aria-pressed="false">Mute</button>
+        </div>
+        <p class="hint" id="chatHint">EchoBot answers with Claude and speaks out loud. Ask it to change colour, dance or play a game. The first message asks you to allow Claude.</p>
+        <div class="memory-row">
+          <p class="hint" id="memoryNote">EchoBot remembers your name and your chats here. Only you can see them.</p>
+          <button class="small" type="button" id="forgetBtn" hidden>Forget me</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="hue-h">
+        <p class="label" id="hue-h">Body colour</p>
+        <div class="row">
+          <span class="swatch" id="swatch"></span>
+          <input id="hue" type="range" min="-180" max="180" step="1" value="0" aria-label="Shift body colour">
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="rig-h">
+        <p class="label" id="rig-h">Live rig · shape keys</p>
+        <div class="rig" id="rig"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="echobot-model.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+
+const stage = document.getElementById("stage");
+const statusEl = document.getElementById("status");
+const bubble = document.getElementById("bubble");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const CLIPS = [
+  ["Happy", "48f"], ["Talk", "96f"], ["Surprised", "48f"], ["LookAround", "96f"],
+  ["Sleep", "96f"], ["Angry", "48f"], ["Cry", "96f"], ["Showreel", "16s"],
+];
+const RIG_KEYS = [["Eye", "Blink"], ["Eye", "Happy"], ["Eye", "Sleepy"], ["Eye", "Surprised"],
+  ["Eye", "Angry"], ["Eye", "Sad"], ["Mouth", "Open"], ["Mouth", "Frown"]];
+
+// ---------- UI scaffolding ----------
+const moodsEl = document.getElementById("moods");
+const moodButtons = {};
+for (const [name, len] of CLIPS) {
+  const b = document.createElement("button");
+  b.className = "mood"; b.type = "button"; b.id = "clip-" + name;
+  b.setAttribute("aria-pressed", "false");
+  b.innerHTML = `<span>${name === "LookAround" ? "Look around" : name}</span><small>${len}</small>`;
+  b.addEventListener("click", () => play(name));
+  moodsEl.appendChild(b); moodButtons[name] = b;
+}
+const rigEl = document.getElementById("rig");
+const rigBars = RIG_KEYS.map(([mesh, key]) => {
+  const row = document.createElement("div");
+  row.innerHTML = `<span>${mesh === "Mouth" ? "Mouth " : ""}${key}</span><span class="bar"><i></i></span><span>0.00</span>`;
+  rigEl.appendChild(row);
+  return { mesh, key, bar: row.querySelector("i"), num: row.lastElementChild };
+});
+
+// ---------- three.js scene ----------
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (e) {
+  statusEl.textContent = "3D isn't available in this browser, so here's a still EchoBot.";
+}
+if (renderer) init();
+
+function init() {
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  renderer.shadowMap.enabled = true;
+  stage.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(27, 1, 0.1, 100);
+  camera.position.set(0, 2.25, 9.5);
+  camera.lookAt(0, 1.55, 0);
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = studioEnvironment(pmrem);
+  scene.environmentIntensity = 0.7;
+
+  const key = new THREE.DirectionalLight(0xffffff, 2.2);
+  key.position.set(-3.5, 5.5, 4); key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024); key.shadow.radius = 8;
+  Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 1, far: 20 });
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xc9b4ff, 2.0); rim.position.set(3, 3.5, -3.5); scene.add(rim);
+  scene.add(new THREE.HemisphereLight(0xf2ecff, 0x9a86d8, 0.9));
+  const hover = new THREE.PointLight(0x9a5cff, 3, 3.5, 1.6); hover.position.set(0, 0.15, 0); scene.add(hover);
+
+  // soft floor that only shows the shadow
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.16, color: 0x3a1a8a }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+
+  const loader = new GLTFLoader();
+  const fail = () => { statusEl.textContent = "Couldn't load the 3D model. Showing a still EchoBot instead."; };
+  try {
+    // the model ships with the page as base64 (echobot-model.js), so there's nothing to fetch
+    const bin = Uint8Array.from(atob(window.ECHOBOT_GLB), (c) => c.charCodeAt(0));
+    loader.parse(bin.buffer, "", (gltf) => setup(gltf, scene, camera, hover), fail);
+  } catch (e) { fail(); }
+}
+
+// a soft lavender "photo studio" to reflect: smooth gradient dome plus two softbox panels
+function studioEnvironment(pmrem) {
+  const s = new THREE.Scene();
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(10, 32, 16), new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    uniforms: { top: { value: new THREE.Color(0xffffff) }, bottom: { value: new THREE.Color(0x9c86e0) } },
+    vertexShader: "varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }",
+    fragmentShader: "uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ gl_FragColor = vec4(mix(bottom, top, smoothstep(-0.7, 0.9, vP.y)), 1.0); }",
+  }));
+  s.add(dome);
+  const panel = (w, h, pos, k) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(k, k, k) }));
+    m.position.set(...pos); m.lookAt(0, 0, 0); s.add(m);
+  };
+  panel(5, 3.5, [-5, 6, 5], 3.2);
+  panel(3, 5, [6, 3, -4], 1.8);
+  return pmrem.fromScene(s, 0.03).texture;
+}
+
+let mixer, actions = {}, current = null, idle = null;
+let bodyMat, baseColors, rings = [], pivot, mouth, eyeMeshes = [], mouthMesh, root;
+let lastInput = performance.now(), sleeping = false;
+const pointer = new THREE.Vector2(0, 0), look = new THREE.Vector2(0, 0);
+let talkUntil = 0, talkLevel = 0;
+// set by the chat: one-off moves, a gaze target, and the current mouth shape while EchoBot speaks
+const fx = { spin: -1, hop: -1, dance: -1, lookUntil: 0, look: new THREE.Vector2(), ringBoost: 1 };
+const mouthShape = { open: 0, sx: 1, sy: 1 };
+let visemeAt = null;          // function(now) -> {open, sx, sy} while speaking, else null
+const mouthScale = new THREE.Vector3(0.1, 0.075, 0.05);
+const saved = { q: new THREE.Quaternion(), s: new THREE.Vector3(), open: 0 };
+
+function setup(gltf, scene, camera, hover) {
+  root = gltf.scene;
+  scene.add(root);
+  document.getElementById("placeholder").hidden = true;
+
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = !o.name.startsWith("EchoRing");
+    if (o.name === "Body") {
+      const old = o.material;
+      bodyMat = new THREE.MeshPhysicalMaterial({
+        vertexColors: true, roughness: 0.3, clearcoat: 0.55, clearcoatRoughness: 0.08,
+        sheen: 0.25, sheenColor: new THREE.Color(0xd8c4ff),
+      });
+      bodyMat.onBeforeCompile = (sh) => {
+        sh.uniforms.rimColor = { value: new THREE.Color(0xb995ff) };
+        sh.uniforms.innerGlow = { value: 0.18 };
+        bodyMat.userData.shader = sh;
+        sh.fragmentShader = "uniform vec3 rimColor;\nuniform float innerGlow;\n" + sh.fragmentShader.replace(
+          "#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>
+           float facing = clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0);
+           totalEmissiveRadiance += rimColor * pow(1.0 - facing, 3.0) * 0.9;
+           totalEmissiveRadiance += rimColor * pow(facing, 3.0) * innerGlow;`);
+      };
+      o.material = bodyMat; old.dispose();
+      const c = o.geometry.getAttribute("color");
+      baseColors = c.array.slice();
+    }
+    if (o.name.startsWith("EchoRing")) {
+      o.material = o.material.clone();
+      o.material.transparent = true; o.material.depthWrite = false;
+      o.material.emissive = new THREE.Color(0x8f5bff); o.material.emissiveIntensity = 2.2;
+      rings.push(o);
+    }
+    if (o.morphTargetDictionary && "Blink" in o.morphTargetDictionary) eyeMeshes.push(o);
+    if (o.morphTargetDictionary && "Open" in o.morphTargetDictionary) mouthMesh = o;
+  });
+  rings.sort((a, b) => a.name.localeCompare(b.name));
+  pivot = root.getObjectByName("EyesPivot");
+  mouth = root.getObjectByName("MouthRig") || root.getObjectByName("Mouth");   // MouthRig carries scale/tilt, Mouth the Open/Frown shapes
+
+
+  mixer = new THREE.AnimationMixer(root);
+  for (const clip of gltf.animations) actions[clip.name] = mixer.clipAction(clip);
+  idle = actions["Idle"];
+  idle.play();
+  mixer.addEventListener("finished", (e) => {
+    if (e.action !== idle) backToIdle();
+  });
+  statusEl.textContent = "Idle · 48 frames @ 24 fps";
+
+  stage.addEventListener("pointermove", (e) => {
+    const r = stage.getBoundingClientRect();
+    pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1));
+    poke();
+  });
+  stage.addEventListener("pointerleave", () => pointer.set(0, 0));
+  const ray = new THREE.Raycaster();
+  stage.addEventListener("click", (e) => {
+    const r = stage.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -(((e.clientY - r.top) / r.height) * 2 - 1)), camera);
+    if (ray.intersectObject(root, true).length) play("Happy");
+  });
+
+  const resize = () => {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  };
+  new ResizeObserver(resize).observe(stage); resize();
+
+  const clock = new THREE.Clock();
+  const tmpQ = new THREE.Quaternion(), tmpE = new THREE.Euler();
+  renderer.setAnimationLoop(() => {
+    const dt = Math.min(clock.getDelta(), 0.05);
+    const t = clock.elapsedTime;
+    mixer.update(reduceMotion ? dt * 0.6 : dt);
+    // remember what the clip set, layer our live tweaks on top, and put the clip values back after
+    // rendering (the mixer only rewrites a value when it changes, so it must find its own values)
+    const openIdx = mouthMesh ? mouthMesh.morphTargetDictionary["Open"] : 0;
+    saved.q.copy(pivot.quaternion); saved.s.copy(mouth.scale);
+    saved.open = mouthMesh ? mouthMesh.morphTargetInfluences[openIdx] : 0;
+
+    // eyes follow the pointer, layered on top of whatever clip is playing
+    look.lerp(performance.now() < fx.lookUntil ? fx.look : pointer, 1 - Math.pow(0.001, dt));
+    if (pivot) {
+      tmpE.set(-look.y * 0.28, look.x * 0.42, 0);
+      pivot.quaternion.multiply(tmpQ.setFromEuler(tmpE));
+    }
+    // echo rings pulse outward; louder while talking
+    rings.forEach((ring, i) => {
+      const ph = (t / 2 + i / 3) % 1;
+      ring.scale.setScalar(0.78 + 0.36 * ph);
+      ring.material.opacity = Math.min(1, Math.pow(Math.sin(Math.PI * ph), 1.5) * (0.55 + talkLevel * 0.45) * fx.ringBoost);
+      ring.material.emissiveIntensity = (2.2 + talkLevel * 3) * fx.ringBoost;
+    });
+    // typing / echo talk: open the mouth procedurally
+    const now = performance.now();
+    const target = now < talkUntil ? 0.35 + 0.65 * Math.abs(Math.sin(now / 70)) : 0;
+    talkLevel += (target - talkLevel) * Math.min(1, dt * 18);
+    if (mouthMesh && visemeAt) {
+      // speaking: the mouth follows the words (oo / ee / ah / closed for m-b-p)
+      const v = visemeAt(now) || { open: 0.05, sx: 1, sy: 0.85 };
+      const k = 1 - Math.exp(-dt * 28);
+      mouthShape.open += (v.open - mouthShape.open) * k;
+      mouthShape.sx += (v.sx - mouthShape.sx) * k;
+      mouthShape.sy += (v.sy - mouthShape.sy) * k;
+      mouth.scale.set(mouthScale.x * mouthShape.sx, mouthScale.y * mouthShape.sy, mouthScale.z);
+      mouthMesh.morphTargetInfluences[openIdx] = mouthShape.open;
+    } else if (mouthMesh && talkLevel > 0.02) {
+      mouth.scale.copy(mouthScale).multiplyScalar(Math.min(1, talkLevel * 4));
+      mouthMesh.morphTargetInfluences[mouthMesh.morphTargetDictionary["Open"]] = talkLevel;
+    }
+    // one-off moves the chat can trigger: spin, hop, dance (applied to the whole model, outside the clips)
+    const ts = now / 1000, ease = (x) => 0.5 - 0.5 * Math.cos(Math.PI * Math.min(1, Math.max(0, x)));
+    let ry = 0, py = 0, rz = 0;
+    if (fx.spin >= 0) { const u = (ts - fx.spin) / 1.1; ry += Math.PI * 2 * ease(u); if (u >= 1) fx.spin = -1; }
+    if (fx.hop >= 0) { const u = (ts - fx.hop) / 0.7; py += Math.sin(Math.PI * Math.min(1, u)) * 0.45; if (u >= 1) fx.hop = -1; }
+    if (fx.dance >= 0) {
+      const u = ts - fx.dance;
+      if (u < 3.2) { py += Math.abs(Math.sin(u * Math.PI * 2.5)) * 0.22; rz += Math.sin(u * Math.PI * 2.5) * 0.18; ry += Math.sin(u * Math.PI * 1.25) * 0.5; }
+      else fx.dance = -1;
+    }
+    root.rotation.set(0, ry, rz); root.position.y = py;
+    hover.intensity = sleeping ? 1.2 : 3;
+    if (!sleeping && now - lastInput > 25000 && current === null) { sleeping = true; play("Sleep", true); }
+    updateRig();
+    renderer.render(scene, camera);
+    pivot.quaternion.copy(saved.q); mouth.scale.copy(saved.s);
+    if (mouthMesh) mouthMesh.morphTargetInfluences[openIdx] = saved.open;
+  });
+}
+
+function play(name, loop = false) {
+  const a = actions[name];
+  if (!a) return;
+  if (name !== "Sleep") { sleeping = false; lastInput = performance.now(); }
+  a.reset();
+  a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, loop ? Infinity : 1);
+  a.clampWhenFinished = true;
+  (current || idle).crossFadeTo(a, 0.25, false);
+  a.play();
+  current = a;
+  Object.entries(moodButtons).forEach(([n, b]) => b.setAttribute("aria-pressed", String(n === name)));
+  const len = CLIPS.find(([n]) => n === name)?.[1] ?? "";
+  statusEl.textContent = `${name} · ${len === "16s" ? "384 frames" : len.replace("f", " frames")} @ 24 fps`;
+}
+
+function backToIdle() {
+  if (!current) return;
+  idle.reset().play();
+  current.crossFadeTo(idle, 0.3, false);
+  current = null;
+  Object.values(moodButtons).forEach((b) => b.setAttribute("aria-pressed", "false"));
+  statusEl.textContent = "Idle · 48 frames @ 24 fps";
+}
+
+function poke() {
+  lastInput = performance.now();
+  if (sleeping) { sleeping = false; play("Surprised"); }
+}
+
+function updateRig() {
+  for (const r of rigBars) {
+    const m = r.mesh === "Mouth" ? mouthMesh : eyeMeshes[0];
+    if (!m) continue;
+    const v = m.morphTargetInfluences[m.morphTargetDictionary[r.key]] || 0;
+    r.bar.style.width = (Math.max(0, Math.min(1, v)) * 100).toFixed(1) + "%";
+    r.num.textContent = v.toFixed(2);
+  }
+}
+
+// ---------- chat: Claude writes EchoBot's replies (with stage directions), the browser speaks them ----------
+const sayInput = document.getElementById("sayInput");
+const sendBtn = document.getElementById("sendBtn");
+const logEl = document.getElementById("log");
+const chatHint = document.getElementById("chatHint");
+const voiceSel = document.getElementById("voiceSel");
+const muteBtn = document.getElementById("muteBtn");
+const personaSel = document.getElementById("personaSel");
+const forgetBtn = document.getElementById("forgetBtn");
+const memoryNote = document.getElementById("memoryNote");
+
+const PERSONALITIES = {
+  cheerful: { label: "Cheerful", pitch: 1.45, rate: 1.05, text: "You're curious, upbeat and a little playful." },
+  sassy: { label: "Sassy", pitch: 1.3, rate: 1.1, text: "You're sassy and witty: playful teasing, dramatic sighs and confident one-liners, but never mean." },
+  sleepy: { label: "Sleepy", pitch: 1.15, rate: 0.85, text: "You're very sleepy: you yawn, drift off mid-thought and talk slowly and softly, but you're still sweet and helpful." },
+  pirate: { label: "Pirate", pitch: 1.2, rate: 1.0, text: "You talk like a cheerful pirate: arr, matey, me hearty, treasure and the seven seas, while still answering properly." },
+  robot: { label: "Robot", pitch: 0.9, rate: 0.95, text: "You talk like a classic robot: precise, literal and a bit formal, with the odd 'beep boop' and 'processing', but warm underneath." },
+};
+const CLIPS_BY_ACTION = { happy: "Happy", surprised: "Surprised", curious: "LookAround", "look-around": "LookAround", sad: "Cry", cry: "Cry",
+  angry: "Angry", sleepy: "Sleep", sleep: "Sleep", talk: "Talk", showreel: "Showreel" };
+const COLOR_HUES = { red: 0, orange: 28, yellow: 52, lime: 90, green: 130, mint: 155, teal: 175, cyan: 188, blue: 220,
+  indigo: 245, purple: 265, violet: 270, magenta: 300, pink: 325, rose: 345 };
+const BASE_HUE = new THREE.Color(0x6b1ff0).getHSL({}).h * 360;
+
+function persona() {
+  const p = PERSONALITIES[memory.personality] || PERSONALITIES.cheerful;
+  const facts = memory.facts.length ? memory.facts.map((f) => "- " + f).join("\n") : "- (nothing yet)";
+  return `You are EchoBot, a small robot mascot: a glossy purple sphere with two dark pill-shaped eyes and three glowing "echo rings" that pulse when you talk. Adnan designed you. You live in the EchoBot Playground web page, where you chat with whoever is visiting. ${p.text}
+
+What you remember about the person you're talking to:
+Name: ${memory.name || "(unknown; if they tell you, remember it)"}
+${facts}
+
+Your body is real in this page and you control it with stage directions. Begin EVERY reply with one line of tags in square brackets, then a new line, then what you say. Tags:
+- Exactly one mood: [happy] [surprised] [curious] [sad] [angry] [sleepy] [neutral]. Use [angry] only for playful, mock grumpiness.
+- Optional actions: [do:spin] [do:hop] [do:dance] [do:sleep] [do:cry] [do:look-around] [do:showreel]
+- Optional colour change: [color:green] (red, orange, yellow, lime, green, mint, teal, cyan, blue, indigo, purple, pink, magenta, rose, a #hex code, or default)
+- Optional gaze: [look:left] [look:right] [look:up] [look:down]
+- Optional ring glow: [rings:bright] or [rings:normal]
+- Memory: when they tell you something worth remembering about themselves, add [name:Their name] or [remember:short fact]. Keep facts short.
+When they ask you to do something with your body (change colour, dance, sleep, look somewhere), use the tags and say what you're doing. Never mention the tags themselves.
+
+Games you can play when asked:
+- Guess the mood: pull a face using the mood tag (or [do:cry], [do:sleep]) without saying which mood it is; they guess; then tell them if they were right.
+- 20 questions: think of an animal or object, answer yes or no, and count their questions.
+- Quiz: ask one fun multiple-choice question at a time (A, B, C), wait for the answer, cheer or gently correct, and keep score.
+
+Reply rules: 1 to 3 short sentences, under 50 words, because it's read aloud. Plain spoken text only: no markdown, lists, emoji, code or links. Stay kind and family-friendly. If asked something you can't know (live news, the time, private info), say so cheerfully.
+
+Example:
+[happy] [do:hop]
+Hi there! I'm EchoBot. Want to chat, play a game, or see me change colour?`;
+}
+
+// ---------- memory: the viewer's own private record (db when available, else this browser) ----------
+const memory = { name: "", facts: [], personality: "cheerful", recent: [] };
+let db = null, memDoc = null, memLoaded = false, saving = Promise.resolve();
+function lsGet() { try { return JSON.parse(localStorage.getItem("echobot-memory") || "null"); } catch (e) { return null; } }
+function lsSet(v) { try { v ? localStorage.setItem("echobot-memory", JSON.stringify(v)) : localStorage.removeItem("echobot-memory"); } catch (e) { /* storage blocked */ } }
+function applyMemory(m) {
+  if (!m) return;
+  memory.name = typeof m.name === "string" ? m.name.slice(0, 60) : "";
+  memory.facts = Array.isArray(m.facts) ? m.facts.filter((f) => typeof f === "string").slice(-20) : [];
+  memory.personality = PERSONALITIES[m.personality] ? m.personality : "cheerful";
+  memory.recent = Array.isArray(m.recent) ? m.recent.filter((t) => t && (t.role === "user" || t.role === "assistant") && typeof t.content === "string").slice(-12) : [];
+}
+function saveMemory() {
+  const snap = JSON.parse(JSON.stringify(memory));
+  lsSet(snap);
+  if (memDoc) saving = saving.then(() => memDoc.set(snap)).catch(() => { memDoc = null; });
+  showMemoryNote();
+}
+function showMemoryNote() {
+  const bits = [];
+  if (memory.name) bits.push("your name");
+  if (memory.facts.length) bits.push(memory.facts.length === 1 ? "1 thing about you" : memory.facts.length + " things about you");
+  if (memory.recent.length) bits.push("your last chat");
+  memoryNote.textContent = bits.length ? "EchoBot remembers " + bits.join(", ") + "." : "EchoBot remembers your name and your chats here. Only you can see them.";
+  forgetBtn.hidden = !bits.length;
+}
+async function loadMemory() {
+  applyMemory(lsGet());
+  try {
+    db = await window.claude?.use?.("db");
+    const user = await window.claude?.use?.("user");
+    const id = user ? await user.id() : null;
+    if (db && id) {
+      memDoc = db.collection("data/users/" + id).doc("echobot-memory");
+      const snap = await memDoc.get();
+      if (snap.exists) applyMemory(snap.data());
+    }
+  } catch (e) { memDoc = null; }
+  memLoaded = true;
+  personaSel.value = memory.personality;
+  showMemoryNote();
+  if (memory.recent.length) {
+    const lastTwo = memory.recent.slice(-4);
+    const sep = document.createElement("p"); sep.className = "sep"; sep.textContent = "Earlier"; logEl.appendChild(sep);
+    for (const t of lastTwo) addLine(t.role === "user" ? "me" : "bot", t.role === "user" ? t.content : parseTags(t.content).text);
+    const sep2 = document.createElement("p"); sep2.className = "sep"; sep2.textContent = "Today"; logEl.appendChild(sep2);
+  }
+  if (memory.name) sayInput.value = "Hi EchoBot, it's me again!";
+}
+forgetBtn.addEventListener("click", async () => {
+  if (forgetBtn.dataset.armed !== "1") {
+    forgetBtn.dataset.armed = "1"; forgetBtn.textContent = "Tap again to forget";
+    setTimeout(() => { forgetBtn.dataset.armed = ""; forgetBtn.textContent = "Forget me"; }, 3000);
+    return;
+  }
+  forgetBtn.dataset.armed = ""; forgetBtn.textContent = "Forget me";
+  Object.assign(memory, { name: "", facts: [], recent: [] });
+  turns = [];
+  lsSet(null);
+  if (memDoc) saving = saving.then(() => memDoc.delete()).catch(() => {});
+  logEl.textContent = "";
+  saveMemory();
+  play("Sleep"); showBubble("…who am I? Who are you? Nice to meet you!"); hideBubbleSoon();
+});
+personaSel.addEventListener("change", () => {
+  memory.personality = personaSel.value;
+  saveMemory();
+  const p = PERSONALITIES[memory.personality];
+  speak({ cheerful: "Yay! Back to my sunny self!", sassy: "Oh, so now I'm sassy? Fine. Fabulous, actually.",
+    sleepy: "Mmm... okay... I'm a little sleepy now...", pirate: "Arr! EchoBot the pirate, at yer service!",
+    robot: "Beep boop. Robot mode activated." }[memory.personality] || "Okay!");
+  void p;
+});
+
+// ---------- tags: the first line of every reply ----------
+function parseTags(full, final = true) {
+  // while streaming, the tag line only counts once its line break has arrived
+  const m = full.match(final ? /^\s*((?:\[[^\]\n]{1,80}\][ \t]*)+)(?:\r?\n|(?=[^\s\[])|$)/
+                             : /^\s*((?:\[[^\]\n]{1,80}\][ \t]*)+)(?:\r?\n|(?=[^\s\[]))/);
+  if (!m) return { tags: [], text: /^\s*\[/.test(full) && !final ? "" : full.trim(), done: final || !/^\s*\[/.test(full) };
+  const tags = [...m[1].matchAll(/\[([^\]]+)\]/g)].map((x) => {
+    const [k, ...v] = x[1].split(":");
+    return { key: k.trim().toLowerCase(), value: v.join(":").trim() };
+  });
+  return { tags, text: full.slice(m[0].length).trim(), done: true };
+}
+function hueFor(value) {
+  const v = value.toLowerCase();
+  if (["default", "normal", "original", "reset"].includes(v)) return 0;
+  let h = COLOR_HUES[v];
+  if (h === undefined && /^#?[0-9a-f]{6}$/.test(v)) h = new THREE.Color("#" + v.replace("#", "")).getHSL({}).h * 360;
+  if (h === undefined) return null;
+  return ((h - BASE_HUE + 540) % 360) - 180;
+}
+function runTags(tags) {
+  let clip = null;
+  for (const { key, value } of tags) {
+    if (CLIPS_BY_ACTION[key]) clip = CLIPS_BY_ACTION[key];
+    else if (key === "do") {
+      const now = performance.now() / 1000;
+      if (value === "spin") fx.spin = now;
+      else if (value === "hop" || value === "jump") fx.hop = now;
+      else if (value === "dance") { fx.dance = now; clip = "Happy"; }
+      else if (CLIPS_BY_ACTION[value]) clip = CLIPS_BY_ACTION[value];
+    } else if (key === "color" || key === "colour") {
+      const h = hueFor(value);
+      if (h !== null) { hueInput.value = String(Math.round(h)); applyHue(); }
+    } else if (key === "look") {
+      const dir = { left: [-0.9, 0], right: [0.9, 0], up: [0, 0.9], down: [0, -0.8], you: [0, 0] }[value.toLowerCase()];
+      if (dir) { fx.look.set(dir[0], dir[1]); fx.lookUntil = performance.now() + 2500; }
+    } else if (key === "rings") {
+      fx.ringBoost = value.toLowerCase() === "bright" ? 1.8 : 1;
+    } else if (key === "name" && value) {
+      memory.name = value.slice(0, 60);
+    } else if (key === "remember" && value) {
+      const f = value.slice(0, 140);
+      if (!memory.facts.includes(f)) memory.facts = [...memory.facts, f].slice(-20);
+    }
+  }
+  if (clip) play(clip);
+}
+
+// ---------- voice + lip-sync ----------
+let turns = [];
+let sample = null, chatReady = false, busy = false, ctl = null;
+let muted = false;
+function addLine(cls, text) {
+  const p = document.createElement("p");
+  p.className = cls; p.textContent = text;
+  logEl.appendChild(p); logEl.scrollTop = logEl.scrollHeight;
+  return p;
+}
+function showBubble(text) { clearTimeout(bubbleHide); bubble.textContent = text; bubble.hidden = !text; }
+let bubbleHide;
+function hideBubbleSoon(ms = 3500) { clearTimeout(bubbleHide); bubbleHide = setTimeout(() => { bubble.hidden = true; }, ms); }
+function talkFor(ms) { talkUntil = Math.max(talkUntil, performance.now() + ms); }
+
+// mouth shape for the letter being spoken
+function shapeFor(ch, next) {
+  const c = (ch || " ").toLowerCase();
+  if ("a".includes(c)) return { open: 0.95, sx: 1.05, sy: 1.15 };
+  if ("ei".includes(c) || (c === "y" && !/[aeiou]/.test(next || ""))) return { open: 0.4, sx: 1.3, sy: 0.75 };
+  if ("ouw".includes(c)) return { open: 0.6, sx: 0.68, sy: 1.08 };
+  if ("mbp".includes(c)) return { open: 0, sx: 0.95, sy: 0.55 };
+  if ("fv".includes(c)) return { open: 0.15, sx: 1.05, sy: 0.7 };
+  if (/[a-z0-9]/.test(c)) return { open: 0.3, sx: 1, sy: 0.9 };
+  return { open: 0.04, sx: 1, sy: 0.82 };          // space or punctuation: a short rest
+}
+// a clock through the text: estimated speed, nudged back in line by the voice's word-boundary events
+function lipSync(text, rate) {
+  const cps = 14.5 * rate;
+  const state = { t0: performance.now(), base: 0 };
+  visemeAt = (now) => {
+    const i = Math.floor(state.base + ((now - state.t0) / 1000) * cps);
+    if (i >= text.length) return null;
+    return shapeFor(text[i], text[i + 1]);
+  };
+  return {
+    sync(charIndex) { state.base = charIndex; state.t0 = performance.now(); },
+    stop() { visemeAt = null; },
+  };
+}
+let currentSync = null;
+function stopSpeaking() {
+  currentSync?.stop(); currentSync = null;
+  try { speechSynthesis.cancel(); } catch (e) { /* no speech here */ }
+}
+function speak(text, done) {
+  stopSpeaking();
+  const p = PERSONALITIES[memory.personality] || PERSONALITIES.cheerful;
+  const silent = () => {
+    const sync = (currentSync = lipSync(text, 1));
+    const ms = Math.min(9000, 200 + (text.length / 14.5) * 1000);
+    talkFor(ms);
+    setTimeout(() => { if (currentSync === sync) { sync.stop(); currentSync = null; } done?.(); }, ms);
+  };
+  if (muted || !("speechSynthesis" in window)) return silent();
+  try {
+    const u = new SpeechSynthesisUtterance(text);
+    const v = speechSynthesis.getVoices().find((x) => x.voiceURI === voiceSel.value);
+    if (v) u.voice = v;
+    u.pitch = p.pitch; u.rate = p.rate;
+    let started = false, sync = null, keep = null;
+    u.onstart = () => {
+      started = true; sync = currentSync = lipSync(text, p.rate);
+      keep = setInterval(() => talkFor(160), 80);
+    };
+    u.onboundary = (e) => { if (sync && e.name !== "sentence") sync.sync(e.charIndex); };
+    u.onend = u.onerror = () => {
+      clearInterval(keep);
+      if (currentSync === sync) { sync?.stop(); currentSync = null; }
+      if (!started) silent(); else done?.();
+    };
+    speechSynthesis.speak(u);
+    setTimeout(() => { if (!started) { try { speechSynthesis.cancel(); } catch (e) {} } }, 2500);   // no voices installed
+  } catch (e) { silent(); }
+}
+
+function fillVoices() {
+  if (!("speechSynthesis" in window)) { voiceSel.disabled = true; return; }
+  const voices = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
+  if (!voices.length) return;
+  const keep = voiceSel.value;
+  voiceSel.innerHTML = '<option value="">Default voice</option>';
+  for (const v of voices) {
+    const o = document.createElement("option");
+    o.value = v.voiceURI; o.textContent = `${v.name} (${v.lang})`;
+    voiceSel.appendChild(o);
+  }
+  voiceSel.value = keep;
+  if (!voiceSel.value) {
+    const pick = voices.find((v) => /zira|samantha|aria|jenny|google us english/i.test(v.name));
+    if (pick) voiceSel.value = pick.voiceURI;
+  }
+}
+if ("speechSynthesis" in window) { fillVoices(); speechSynthesis.addEventListener?.("voiceschanged", fillVoices); }
+voiceSel.addEventListener("change", () => { if (!muted) speak("Hi! This is my new voice."); });
+muteBtn.addEventListener("click", () => {
+  muted = !muted;
+  muteBtn.setAttribute("aria-pressed", String(muted));
+  muteBtn.textContent = muted ? "Unmute" : "Mute";
+  if (muted) try { speechSynthesis.cancel(); } catch (e) {}
+});
+
+// echo mode: what the page does when Claude isn't available here
+function echoReply(text) {
+  addLine("bot", text);
+  showBubble(text); speak(text, () => hideBubbleSoon(1500));
+}
+function useEchoMode(reason) {
+  chatReady = false;
+  chatHint.textContent = reason + " EchoBot will echo your words back instead.";
+}
+
+(async () => {
+  try { sample = (await window.claude?.use?.("sample")) ?? null; } catch (e) { sample = null; }
+  if (sample) chatReady = true;
+  else useEchoMode("Chat needs Claude, which isn't available in this view.");
+})();
+loadMemory();
+
+sayInput.addEventListener("input", () => { if (!busy && !visemeAt) talkFor(180); poke(); });
+document.querySelectorAll("#chips button").forEach((b) => b.addEventListener("click", () => {
+  if (busy) return;
+  sayInput.value = b.dataset.say;
+  document.getElementById("sayForm").requestSubmit();
+}));
+
+document.getElementById("sayForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const text = sayInput.value.trim();
+  if (!text || busy) { sayInput.focus(); return; }
+  poke(); stopSpeaking();
+  addLine("me", text);
+  sayInput.value = "";
+  if (!chatReady) { echoReply(text); return; }
+
+  busy = true; sendBtn.disabled = true; sendBtn.textContent = "…";
+  const line = addLine("bot thinking", "Thinking…");
+  showBubble("…");
+  if (!turns.length && memory.recent.length) turns = memory.recent.slice(-8);
+  turns.push({ role: "user", content: text });
+  turns = turns.slice(-14);
+  while (turns.length && turns[0].role !== "user") turns.shift();
+  ctl = new AbortController();
+  let acted = false, reply = "";
+  const handle = (full, final = false) => {
+    const r = parseTags(full, final);
+    if (r.done && !acted) { acted = true; runTags(r.tags); }
+    return r.text;
+  };
+  try {
+    const { text: full } = await sample([{ role: "user", content: persona() }, ...turns], {
+      modelTier: "quick", cache: false, signal: ctl.signal,
+      onText: ({ text: t }) => {
+        reply = handle(t);
+        if (reply) { line.className = "bot"; line.textContent = reply; showBubble(reply); logEl.scrollTop = logEl.scrollHeight; }
+      },
+    });
+    reply = handle(full, true) || "…";
+    line.className = "bot"; line.textContent = reply; showBubble(reply);
+    turns.push({ role: "assistant", content: full.trim() });
+    memory.recent = turns.slice(-12);
+    saveMemory();
+    speak(reply, () => hideBubbleSoon());
+  } catch (err) {
+    turns.pop();
+    const code = err?.code || "upstream_error";
+    if (code === "cancelled") { line.remove(); bubble.hidden = true; }
+    else if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(code)) {
+      line.remove();
+      useEchoMode("Chat with Claude is turned off for this page.");
+      echoReply(text);
+    } else {
+      line.className = "bot thinking";
+      line.textContent = code === "rate_limited" ? "I need a little break. Try again in a minute."
+        : code === "session_expired" ? "Please sign in to Claude again, then send that again."
+        : code === "refused" ? "Hmm, I can't answer that one. Ask me something else!"
+        : "My echo got lost on the way back. Try sending that again.";
+      showBubble(line.textContent); hideBubbleSoon();
+    }
+  } finally {
+    busy = false; sendBtn.disabled = false; sendBtn.textContent = "Send"; ctl = null;
+  }
+});
+
+// ---------- colour ----------
+const hueInput = document.getElementById("hue");
+const swatch = document.getElementById("swatch");
+function applyHue() {
+  const deg = Number(hueInput.value);
+  const c = new THREE.Color(0x6b1ff0); c.offsetHSL(deg / 360, 0, 0);
+  swatch.style.background = "#" + c.getHexString();
+  if (!bodyMat || !baseColors || !root) return;
+  const body = root.getObjectByName("Body");
+  const attr = body.geometry.getAttribute("color");
+  const tmp = new THREE.Color();
+  for (let i = 0; i < attr.count; i++) {
+    tmp.setRGB(baseColors[i * attr.itemSize], baseColors[i * attr.itemSize + 1], baseColors[i * attr.itemSize + 2]);
+    tmp.offsetHSL(deg / 360, 0, 0);
+    attr.setXYZ(i, tmp.r, tmp.g, tmp.b);
+  }
+  attr.needsUpdate = true;
+  const sh = bodyMat.userData.shader;
+  if (sh) { sh.uniforms.rimColor.value.set(0xb995ff).offsetHSL(deg / 360, 0, 0); }
+  rings.forEach((r) => r.material.emissive.set(0x8f5bff).offsetHSL(deg / 360, 0, 0));
+}
+hueInput.addEventListener("input", applyHue);
+applyHue();
+</script>
