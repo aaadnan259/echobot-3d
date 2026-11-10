@@ -1,7 +1,7 @@
 """Step 2 of 2: turn the layer from echobot_ar.py into two AR Quick Look files.
 
   EchoBot.usdz         interactive: tap EchoBot to change mood (each mood has its own sound),
-                       it turns to face you, and it jumps if you come really close.
+                       plus EchoBot_tap_test.usdz, a one-behaviour check that taps work at all.
   EchoBot_simple.usdz  no interaction, just the idle loop (fallback for viewers without behaviours).
 
 Interactivity uses Apple's "USDZ schemas for AR" (Preliminary_Behavior / _Trigger / _Action),
@@ -28,7 +28,6 @@ ap = argparse.ArgumentParser()
 ap.add_argument("--work", default="ar_work")
 ap.add_argument("--sounds", default="ar/sounds")
 ap.add_argument("--out", default="ar")
-ap.add_argument("--near_m", type=float, default=0.25, help="camera distance that makes EchoBot jump")
 A = ap.parse_args()
 os.makedirs(A.out, exist_ok=True)
 tl = json.load(open(os.path.join(A.work, "timeline.json")))
@@ -209,15 +208,15 @@ def interactive_layer():
     Sdf.PrimSpec(lay.GetPrimAtPath(SCENE), "Behaviors", Sdf.SpecifierDef, "Scope")
     n = len(MOODS)
 
-    # start: hide the spare bodies, loop the idle clip, keep facing the viewer
+    # start: hide the spare bodies, loop the idle clip.
+    # (A LookAtCamera "face the viewer" action was tried and dropped: on iPad Quick Look it rolled
+    #  EchoBot onto its side and blocked dragging / rotating. A ProximityToCamera jump went with it.)
     b = B(lay, "HideSpareBodies")
     b.set(_start(b), b.visibility(b.spec, [BODY(k) for k in range(1, n)], False).path)
     b = B(lay, "IdleOnStart", exclusive=True)
     loop = b.group(b.spec, "serial", loops=True)
     b.finish_group(loop, [b.anim(loop, "Idle")])
     b.set(_start(b), loop.path)
-    b = B(lay, "FaceTheViewer")
-    b.set(_start(b), b.look_at_camera(b.spec).path)
 
     # tap cycle
     for k, (clip, wav) in enumerate(MOODS):
@@ -227,11 +226,6 @@ def interactive_layer():
         b.finish_group(outer, kids)
         b.set(b.trigger("TapGesture", BODY(k)), outer.path)
 
-    # walk up really close: surprised jump
-    b = B(lay, "TooClose", exclusive=True)
-    outer, kids = b.mood_then_idle("Surprised", "surprised.wav")
-    b.finish_group(outer, kids)
-    b.set(b.trigger("ProximityToCamera", [BODY(k) for k in range(n)], distance=A.near_m), outer.path)
     return lay
 
 
@@ -261,6 +255,27 @@ tex = [("textures/" + f, os.path.join(A.work, "textures", f)) for f in sorted(os
 sounds = [("audio/" + w, os.path.join(A.sounds, w)) for w in sorted({w for _, w in MOODS} | {"surprised.wav"})]
 
 package(interactive_layer(), os.path.join(A.out, "EchoBot.usdz"), tex + sounds)
+def tap_test_layer():
+    """Smallest possible check: tap the body -> it jiggles and chirps. No state, no clips."""
+    lay = base_layer(*tl["clips"]["Idle"], False)
+    for k in range(1, len(MOODS)):
+        del lay.GetPrimAtPath(BODY(k).GetParentPath()).nameChildren[f"Body_{k}"]
+    Sdf.PrimSpec(lay.GetPrimAtPath(SCENE), "Behaviors", Sdf.SpecifierDef, "Scope")
+    b = B(lay, "TapJiggle")
+    g = b.group(b.spec, "parallel")
+    em = b._prim("Preliminary_Action", g)
+    b.rel(em, "affectedObjects", LOOK)
+    b.attr(em, "duration", T.Double, 1.0)
+    b.attr(em, "info:id", T.Token, "Emphasize")
+    b.attr(em, "motionType", T.Token, "jiggle")
+    b.attr(em, "moveDistance", T.Double, 1.0)
+    b.attr(em, "style", T.Token, "basic")
+    b.finish_group(g, [em, b.audio(g, "happy.wav")])
+    b.set(b.trigger("TapGesture", BODY(0)), g.path)
+    return lay
+
+
+package(tap_test_layer(), os.path.join(A.out, "EchoBot_tap_test.usdz"), tex + [s_ for s_ in sounds if "happy" in s_[0]])
 simple = base_layer(*tl["clips"]["Idle"], False)          # Quick Look loops the whole (short) timeline
 for k in range(1, len(MOODS)):                              # the spare bodies are only tap targets
     del simple.GetPrimAtPath(BODY(k).GetParentPath()).nameChildren[f"Body_{k}"]
