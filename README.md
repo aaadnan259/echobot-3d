@@ -159,6 +159,10 @@ right-click > Filters > + > **Chroma Key**. For Zoom/Meet/Discord, click **Start
 1. Send `ar\EchoBot.usdz` to your iPhone or iPad (AirDrop, iCloud or email).
 2. Tap it and choose **AR**.
 3. Point at a table or floor. Pinch to resize, drag to move.
+4. **Tap EchoBot** to change its mood, sound on: happy, talking, surprised, curious, sleepy, grumpy, crying, then round again.
+5. Walk around it: it turns to face you. Get really close and it jumps in surprise.
+
+If tapping does nothing on your device, use `ar\EchoBot_simple.usdz` instead (just the idle animation).
 
 No iPhone? Open `EchoBot_web.glb` in any 3D viewer, or on Android in a model-viewer app that supports AR.
 
@@ -182,7 +186,7 @@ No iPhone? Open `EchoBot_web.glb` in any 3D viewer, or on Android in a model-vie
 | `game\` | Echo Hop |
 | `sticker-pack\`, `stickers\` | Animated and still stickers |
 | `print\` | 3D print files |
-| `ar\` | AR file |
+| `ar\` | AR files: `EchoBot.usdz` (interactive), `EchoBot_simple.usdz` (idle only), the build scripts and `sounds\` |
 | `intro\` | The Blender scene the intro was made from |
 
 `echobot-model.js` appears in several folders on purpose, so each folder works on its own.
@@ -200,7 +204,8 @@ blender -b -P echobot_build.py -- --stickers stickers            # still sticker
 blender -b -P echobot_build.py -- --glb EchoBot_web.glb          # web model
 blender -b -P intro/echobot_intro.py -- --out intro_render       # intro video
 blender -b -P print/echobot_print.py -- --out print --size 80    # an 80 mm figure
-blender -b -P ar/echobot_ar.py -- --out ar --width_cm 30         # a bigger AR bot
+blender -b -P ar/echobot_ar.py -- --glb EchoBot_web.glb --out ar_work --width_cm 30   # AR, step 1 (a bigger bot)
+python ar/echobot_ar_pack.py --work ar_work --sounds ar/sounds --out ar               # AR, step 2 (needs pip install usd-core)
 python sticker-pack/pack_stickers.py <frames folder> sticker-pack  # sticker formats
 ```
 
