@@ -29,7 +29,14 @@ fn set_bounds(app: AppHandle, label: String, x: i32, y: i32, w: i32, h: i32) {
 }
 #[tauri::command]
 fn show_inactive(app: AppHandle, label: String) {
-    if let Some(hwnd) = hwnd_of(&app, &label) { unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE); } }
+    // Show through Tauri so it knows the window is visible (a bare ShowWindow got undone and the pet never
+    // appeared), then hand focus back to whatever app had it, since Tauri's show() activates the window.
+    if let Some(w) = app.get_webview_window(&label) {
+        let prev = unsafe { GetForegroundWindow() };
+        let _ = w.show();
+        let own = w.hwnd().ok().map(|h| h.0 as HWND);
+        if !prev.is_null() && Some(prev) != own { unsafe { SetForegroundWindow(prev); } }
+    }
 }
 #[tauri::command]
 fn set_topmost(app: AppHandle, label: String, on: bool) {
