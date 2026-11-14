@@ -120,6 +120,9 @@ export class BrowserWindow extends Emitter {
     if (this._pendingIgnore !== undefined) this.setIgnoreMouseEvents(this._pendingIgnore);
     this.webContents.emit("did-finish-load");
     this.emit("ready-to-show");
+    // Electron shows a window unless it was made with show:false (Settings and the games rely on that).
+    // Tauri windows start hidden here, so show them now to match.
+    if (this.opts.show !== false && !this._visible) this.show();
   }
   _gone() { if (this._destroyed) return; this._destroyed = true; windows.delete(this.label); this.emit("closed"); }
   isDestroyed() { return this._destroyed; }

@@ -62,8 +62,8 @@ module.exports = {
     }
     // ---- CPU ----
     const cpu = api.world.cpu;
-    // a fully loaded PC often reads only 80–90% here, so 80 counts as busy
-    if (cpu >= 80) cpuHigh += 1; else if (cpu < 60) cpuHigh = 0;
+    // a fully loaded PC often reads well under 100% here (hybrid Intel chips top out around 72%), so 65 counts as busy
+    if (cpu >= 65) cpuHigh += 1; else if (cpu < 50) cpuHigh = 0;
     const hot = cpuHigh > 60 * 10;            // ~10 seconds of the 60 Hz loop
     if (hot !== cpuHot) {
       cpuHot = hot; api.refresh();
