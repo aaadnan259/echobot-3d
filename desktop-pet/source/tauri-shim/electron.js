@@ -134,7 +134,9 @@ export class BrowserWindow extends Emitter {
   setPosition(x, y) { this.setBounds({ x, y }); }
   getPosition() { return [this.bounds.x, this.bounds.y]; }
   show() { this._visible = true; this.tw && this.tw.show().then(() => this.tw.setFocus()).catch(() => {}); }
-  showInactive() { this._visible = true; invoke("show_inactive", { label: this.label }).catch(() => {}); }
+  // Use Tauri's own show(): a raw ShowWindow (the old show_inactive command) left Tauri thinking the window
+  // was still hidden, and it kept the pet hidden, so EchoBot never appeared on screen.
+  showInactive() { this._visible = true; this.tw && this.tw.show().catch(() => {}); }
   hide() { this._visible = false; this.tw && this.tw.hide().catch(() => {}); }
   isVisible() { return this._visible && !this._destroyed; }
   focus() { this.tw && this.tw.setFocus().catch(() => {}); }
