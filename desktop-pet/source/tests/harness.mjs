@@ -11,6 +11,11 @@ export const EXE = process.env.PET_EXE || path.resolve(here, "..", "..", "EchoBo
 export const LIGHT = /Lite/.test(EXE);
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// result files are written in the background; retry if we catch one half-written
+async function readJson(f) {
+  for (let i = 0; ; i++) { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { if (i >= 20) throw e; await sleep(50); } }
+}
+
 export async function launch({ settings = {}, name = "run", env = {} } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "echobot-" + name + "-"));
   fs.mkdirSync(path.join(dir, "userdata"), { recursive: true });
@@ -31,14 +36,14 @@ export async function launch({ settings = {}, name = "run", env = {} } = {}) {
       const out = `main-${++n}.json`;
       pet.send({ cmd: "main", js, out });
       const f = path.join(dir, out), end = Date.now() + ms;
-      while (Date.now() < end) { if (fs.existsSync(f)) { await sleep(50); return JSON.parse(fs.readFileSync(f, "utf8")); } await sleep(80); }
+      while (Date.now() < end) { if (fs.existsSync(f)) { await sleep(50); return await readJson(f); } await sleep(80); }
       throw new Error("main() timed out: " + js);
     },
     async evalIn(js, role = "main", ms = 5000) {
       const out = `eval-${++n}.json`;
       pet.send({ cmd: "eval", js, out, role });
       const f = path.join(dir, out), end = Date.now() + ms;
-      while (Date.now() < end) { if (fs.existsSync(f)) { await sleep(50); return JSON.parse(fs.readFileSync(f, "utf8")); } await sleep(80); }
+      while (Date.now() < end) { if (fs.existsSync(f)) { await sleep(50); return await readJson(f); } await sleep(80); }
       throw new Error("eval timed out");
     },
     async capture(file, role = "main") {
