@@ -4,6 +4,10 @@ import { initElectronShim, startIpc, app } from "./electron.js";
 import * as electron from "./electron.js";
 import { fs, path, os, child_process } from "./node.js";
 
+// The brain runs in a hidden window. Holding a Web Lock for the page's whole life stops WebView2 from
+// freezing or discarding it (the browser flags set in main.rs stop the timer throttling).
+try { navigator.locks.request("echobot-brain-alive", () => new Promise(() => {})); } catch {}
+
 (async () => {
   await initNative();
   await initElectronShim();

@@ -40,7 +40,7 @@ function occurrences(ev, from, to) {
   if (!ev.rrule) { if (ev.start >= from && ev.start <= to) res.push(ev.start); return res; }
   const r = ev.rrule, freq = r.FREQ, interval = +(r.INTERVAL || 1);
   if (freq !== "DAILY" && freq !== "WEEKLY") { if (ev.start >= from && ev.start <= to) res.push(ev.start); return res; }
-  const until = r.UNTIL ? parseDate(r.UNTIL).date : null, count = r.COUNT ? +r.COUNT : Infinity;
+  const until = r.UNTIL && parseDate(r.UNTIL) ? parseDate(r.UNTIL).date : null, count = r.COUNT ? +r.COUNT : Infinity;
   const byDay = r.BYDAY ? r.BYDAY.split(",").map((d) => DAYS.indexOf(d.slice(-2))) : [ev.start.getDay()];
   let n = 0;
   const day0 = new Date(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate());
@@ -68,7 +68,8 @@ async function load() {
   try {
     let text;
     if (/^(https|webcal):\/\//i.test(src)) {
-      const res = await fetch(src.replace(/^webcal:/i, "https:"), { headers: { "User-Agent": "EchoBot-desktop-pet" } });
+      // main-side HTTP: in the light build a plain fetch() runs in a web page, and calendar servers block it (CORS)
+      const res = await require("../http").fetch(src.replace(/^webcal:/i, "https:"), { headers: { "User-Agent": "EchoBot-desktop-pet" } });
       if (!res.ok) throw new Error("the calendar link answered " + res.status);
       text = await res.text();
     } else text = await fs.promises.readFile(src.replace(/^"|"$/g, ""), "utf8");

@@ -120,6 +120,9 @@ export class BrowserWindow extends Emitter {
     if (this._pendingIgnore !== undefined) this.setIgnoreMouseEvents(this._pendingIgnore);
     this.webContents.emit("did-finish-load");
     this.emit("ready-to-show");
+    // Electron shows a window unless it was made with show:false (Settings and the games rely on that).
+    // Tauri windows start hidden here, so show them now to match.
+    if (this.opts.show !== false && !this._visible) this.show();
   }
   _gone() { if (this._destroyed) return; this._destroyed = true; windows.delete(this.label); this.emit("closed"); }
   isDestroyed() { return this._destroyed; }
@@ -134,6 +137,7 @@ export class BrowserWindow extends Emitter {
   setPosition(x, y) { this.setBounds({ x, y }); }
   getPosition() { return [this.bounds.x, this.bounds.y]; }
   show() { this._visible = true; this.tw && this.tw.show().then(() => this.tw.setFocus()).catch(() => {}); }
+  // The native show_inactive command shows the window through Tauri (so it stays shown) and gives focus back.
   showInactive() { this._visible = true; invoke("show_inactive", { label: this.label }).catch(() => {}); }
   hide() { this._visible = false; this.tw && this.tw.hide().catch(() => {}); }
   isVisible() { return this._visible && !this._destroyed; }

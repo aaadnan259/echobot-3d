@@ -212,7 +212,8 @@ function loop() {
     if (frame % 2 === 0) p.send("tick", { ...p.tickData(), typing: store.get().typing ? world.typing : 0 });
     p.think(now, ctx);
   }
-  for (const f of features) if (f.tick) f.tick(now, dt);
+  // one feature failing (say, a calendar feed it can't read) mustn't stop the others ticking
+  for (const f of features) if (f.tick) { try { f.tick(now, dt); } catch (err) { if (!f._tickErr) { f._tickErr = true; console.error(f.name, err); } } }
 }
 
 app.whenReady().then(() => {

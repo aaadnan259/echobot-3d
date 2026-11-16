@@ -225,6 +225,8 @@
 <script>
 let S = {}, CAT = null, LEVEL = 1, FEAT = {};
 const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+// text from outside (calendar feeds, chat replies, error messages) goes into the page as text, never as HTML
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const getPath = (o, p) => p.split(".").reduce((a, k) => (a == null ? a : a[k]), o);
 const patchFor = (p, v) => p.split(".").reverse().reduce((acc, k) => ({ [k]: acc }), v);
 async function set(patch) { S = await echo.set(patch); render(); }
@@ -314,7 +316,7 @@ async function refresh() {
   $("#focusState").textContent = f.mode === "focus" ? `Focusing: ${f.minutesLeft} min left` : f.mode === "break" ? `On a break: ${f.minutesLeft} min left` : "Start from here or right-click EchoBot › Focus timer.";
   $("#focusBtn").textContent = f.mode ? "Stop" : "Start focus";
   const cal = FEAT.calendar || {};
-  $("#calStatus").innerHTML = cal.error ? `<span class="err">Couldn't read it: ${cal.error}</span>` : cal.events ? `<span class="ok">✓ ${cal.events} event(s) found.</span> ${cal.next.length ? "Next: " + cal.next.map((e) => `${e.title} at ${new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`).join(", ") : "Nothing in the next 24 hours."}` : S.calendar.source ? "Not checked yet." : "";
+  $("#calStatus").innerHTML = cal.error ? `<span class="err">Couldn't read it: ${esc(cal.error)}</span>` : cal.events ? `<span class="ok">✓ ${cal.events} event(s) found.</span> ${cal.next.length ? "Next: " + cal.next.map((e) => `${esc(e.title)} at ${new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`).join(", ") : "Nothing in the next 24 hours."}` : S.calendar.source ? "Not checked yet." : "";
   $("#startWin").checked = await echo.action("getStartWithWindows");
 }
 
@@ -330,7 +332,7 @@ $("#speakToggle").addEventListener("change", (e) => set({ chat: { mute: !e.targe
 $("#startWin").addEventListener("change", (e) => echo.action("startWithWindows", e.target.checked));
 $("#saveKey").addEventListener("click", async () => { const v = $("#apiKey").value.trim(); if (!v) return; await echo.action("setApiKey", v); $("#apiKey").value = ""; await refresh(); });
 $("#forget").addEventListener("click", async () => { if (confirm("Make EchoBot forget your name, facts and recent chats?")) { await echo.action("forgetMe"); await refresh(); } });
-$("#testChat").addEventListener("click", async () => { $("#chatTest").textContent = "Asking EchoBot…"; const r = await echo.action("testChat"); $("#chatTest").innerHTML = r.reply ? `<span class="ok">✓ “${r.reply}”</span>` : `<span class="err">${r.error}</span>`; });
+$("#testChat").addEventListener("click", async () => { $("#chatTest").textContent = "Asking EchoBot…"; const r = await echo.action("testChat"); $("#chatTest").innerHTML = r.reply ? `<span class="ok">✓ “${esc(r.reply)}”</span>` : `<span class="err">${esc(r.error)}</span>`; });
 $("#openChat").addEventListener("click", () => echo.action("openChat"));
 $("#focusBtn").addEventListener("click", async () => { await echo.action((FEAT.focus || {}).mode ? "stopFocus" : "startFocus", S.focusMinutes); setTimeout(refresh, 300); });
 $("#addReminder").addEventListener("click", () => set({ customReminders: [...(S.customReminders || []), { time: "12:00", text: "", on: true }] }));
@@ -348,7 +350,7 @@ $("#bdMonth").onchange = saveBd; $("#bdDay").onchange = saveBd;
 function fillVoices() {
   const sel = $("#voiceSel"), keep = S.chat ? S.chat.voice : "";
   const vs = speechSynthesis.getVoices().filter((v) => /^en/i.test(v.lang));
-  sel.innerHTML = '<option value="">Default voice</option>' + vs.map((v) => `<option>${v.name}</option>`).join("");
+  sel.innerHTML = '<option value="">Default voice</option>' + vs.map((v) => `<option>${esc(v.name)}</option>`).join("");
   sel.value = keep || "";
 }
 speechSynthesis.addEventListener("voiceschanged", fillVoices);

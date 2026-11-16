@@ -29,7 +29,14 @@ fn set_bounds(app: AppHandle, label: String, x: i32, y: i32, w: i32, h: i32) {
 }
 #[tauri::command]
 fn show_inactive(app: AppHandle, label: String) {
-    if let Some(hwnd) = hwnd_of(&app, &label) { unsafe { ShowWindow(hwnd, SW_SHOWNOACTIVATE); } }
+    // Show through Tauri so it knows the window is visible (a bare ShowWindow got undone and the pet never
+    // appeared), then hand focus back to whatever app had it, since Tauri's show() activates the window.
+    if let Some(w) = app.get_webview_window(&label) {
+        let prev = unsafe { GetForegroundWindow() };
+        let _ = w.show();
+        let own = w.hwnd().ok().map(|h| h.0 as HWND);
+        if !prev.is_null() && Some(prev) != own { unsafe { SetForegroundWindow(prev); } }
+    }
 }
 #[tauri::command]
 fn set_topmost(app: AppHandle, label: String, on: bool) {
@@ -253,6 +260,16 @@ fn audio_stop(state: tauri::State<'_, Arc<Mutex<Audio>>>) {
 fn quit(app: AppHandle) { app.exit(0); }
 
 fn main() {
+    // The brain page lives in a hidden window, and WebView2 throttles hidden pages: timers slow to about
+    // once a second, and after ~5 minutes to about once a minute. The physics loop then stalls and EchoBot
+    // freezes, hangs in the air or ignores drags. Turn that off for every webview in this process (the
+    // environment variable applies to all of them, so they all share one WebView2 setup). The first flag
+    // keeps Tauri's own defaults.
+    if std::env::var_os("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").is_none() {
+        std::env::set_var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
+            "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection,IntensiveWakeUpThrottling \
+             --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows");
+    }
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| { let _ = app.emit_to("brain", "second-instance", ()); }))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
